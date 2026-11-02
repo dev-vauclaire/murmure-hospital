@@ -1,25 +1,6 @@
-import {
-    Home,
-    Settings,
-    Heart,
-    ChevronRight,
-    Keyboard,
-    BookText,
-    Power,
-    Bug,
-    Sparkles,
-    Wrench,
-    AlignLeft,
-    Newspaper,
-    Mic,
-    ArrowDownUp,
-    Puzzle,
-    Smartphone,
-    Zap,
-    Plug,
-} from 'lucide-react';
+import { Home, Heart, ChevronRight, BookText, Bug, Wrench, AlignLeft, Newspaper } from 'lucide-react';
 import { Link, useLocation } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
     Sidebar,
     SidebarHeader,
@@ -38,7 +19,7 @@ import { UpdateChecker } from '../../update-checker/update-checker';
 import { Separator } from '@/components/separator';
 import { useTranslation } from '@/i18n';
 import { useDictionaryRevampSeen } from '@/features/personalize/custom-dictionary/hooks/use-dictionary-revamp-seen';
-import appIcon from '@/assets/app-icon.png';
+import { AppHeader } from '../app-header/app-header';
 import { isPathInItems } from './app-sidebar.helpers';
 import { Onboarding } from '@/features/onboarding/onboarding';
 import { useIsWayland } from '@/components/hooks/use-linux-session-type';
@@ -59,89 +40,26 @@ const getPersonalizeSubItems = (t: (key: string) => string) => [
     },
 ];
 
-const getExtensionsSubItems = (t: (key: string) => string) => [
-    {
-        name: t('Command Mode'),
-        url: '/extensions/command-mode',
-        icon: Zap,
-        dataTestId: 'command-mode-tab',
-    },
-    {
-        name: t('Prompt Mode'),
-        url: '/extensions/llm-connect',
-        icon: Sparkles,
-        dataTestId: 'llm-connect-tab',
-    },
-    {
-        name: t('Voice Mode'),
-        url: '/extensions/voice-mode',
-        icon: Mic,
-        dataTestId: 'voice-mode-tab',
-    },
-    {
-        name: t('Smart Mic'),
-        url: '/extensions/smart-mic',
-        icon: Smartphone,
-        dataTestId: 'smart-mic-tab',
-    },
-    {
-        name: t('Local API'),
-        url: '/extensions/local-api',
-        icon: Plug,
-        dataTestId: 'local-api-tab',
-    },
-];
-
-const getSettingsSubItems = (t: (key: string) => string) => [
-    {
-        name: t('Shortcuts'),
-        url: '/settings/shortcuts',
-        icon: Keyboard,
-        dataTestId: 'shortcuts-tab',
-    },
-    {
-        name: t('System'),
-        url: '/settings/system',
-        icon: Power,
-        dataTestId: 'system-tab',
-    },
-    {
-        name: t('Import / Export'),
-        url: '/settings/import-export',
-        icon: ArrowDownUp,
-        dataTestId: 'import-export-tab',
-    },
-];
-
 export const AppSidebar = () => {
     const { pathname } = useLocation();
     const [personalizeOpen, setPersonalizeOpen] = useState(true);
-    const [extensionsOpen, setExtensionsOpen] = useState(pathname.startsWith('/extensions'));
-    const [settingsOpen, setSettingsOpen] = useState(pathname.startsWith('/settings'));
-
-    useEffect(() => {
-        if (pathname.startsWith('/extensions')) {
-            setExtensionsOpen(true);
-        }
-    }, [pathname]);
     const version = useGetVersion();
     const { t } = useTranslation();
     const { seen: revampSeen } = useDictionaryRevampSeen();
     const personalizeSubItems = getPersonalizeSubItems(t);
-    const extensionsSubItems = getExtensionsSubItems(t);
-    const settingsSubItems = getSettingsSubItems(t);
     const showRevampDot = !revampSeen;
     const isPersonalizeActive = isPathInItems(pathname, personalizeSubItems);
-    const isSettingsActive = isPathInItems(pathname, settingsSubItems);
-    const isExtensionsActive = isPathInItems(pathname, extensionsSubItems);
     const isAboutActive = pathname === '/about';
     const { shortcut: recordShortcut } = useShortcut(SHORTCUT_CONFIGS.record);
     const isWayland = useIsWayland();
 
     return (
-        <Sidebar className="bg-background border-border border-r overflow-hidden w-[15.5rem]">
+        <Sidebar
+            collapsible="none"
+            className="sticky top-0 z-10 h-svh w-[15.5rem] shrink-0 self-start overflow-hidden border-r border-border bg-background"
+        >
             <SidebarHeader className="flex items-center justify-center bg-background border-b border-border">
-                <img src={appIcon} alt="logo" className="w-16 h-16" />
+                <AppHeader />
             </SidebarHeader>
             <SidebarContent className="bg-background">
                 <SidebarGroup>
@@ -181,60 +99,6 @@ export const AppSidebar = () => {
                                                             aria-label={t('Improved')}
                                                         />
                                                     )}
-                                                </Link>
-                                            </SidebarMenuSubButton>
-                                        </SidebarMenuSubItem>
-                                    ))}
-                                </SidebarMenuSub>
-                            )}
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                            <SidebarMenuButton
-                                onClick={() => setSettingsOpen(!settingsOpen)}
-                                data-testid="settings-tab"
-                            >
-                                <Settings className={isSettingsActive ? 'text-sky-400' : undefined} />
-                                <span>{t('Settings')}</span>
-                                <ChevronRight
-                                    className={`ml-auto transition-transform ${settingsOpen ? 'rotate-90' : ''}`}
-                                />
-                            </SidebarMenuButton>
-                            {settingsOpen && (
-                                <SidebarMenuSub>
-                                    {settingsSubItems.map((item) => (
-                                        <SidebarMenuSubItem key={item.url} data-testid={item.dataTestId}>
-                                            <SidebarMenuSubButton asChild isActive={pathname === item.url}>
-                                                <Link to={item.url}>
-                                                    <item.icon />
-                                                    <span>{item.name}</span>
-                                                </Link>
-                                            </SidebarMenuSubButton>
-                                        </SidebarMenuSubItem>
-                                    ))}
-                                </SidebarMenuSub>
-                            )}
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                            <SidebarMenuButton
-                                onClick={() => setExtensionsOpen(!extensionsOpen)}
-                                data-testid="extensions-tab"
-                            >
-                                <Puzzle className={isExtensionsActive ? 'text-sky-400' : undefined} />
-                                <span>{t('Extensions')}</span>
-                                <ChevronRight
-                                    className={`ml-auto transition-transform ${extensionsOpen ? 'rotate-90' : ''}`}
-                                />
-                            </SidebarMenuButton>
-                            {extensionsOpen && (
-                                <SidebarMenuSub>
-                                    {extensionsSubItems.map((item) => (
-                                        <SidebarMenuSubItem key={item.url} data-testid={item.dataTestId}>
-                                            <SidebarMenuSubButton asChild isActive={pathname === item.url}>
-                                                <Link to={item.url}>
-                                                    <item.icon />
-                                                    <span>{item.name}</span>
                                                 </Link>
                                             </SidebarMenuSubButton>
                                         </SidebarMenuSubItem>
