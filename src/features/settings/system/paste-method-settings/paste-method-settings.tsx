@@ -9,7 +9,6 @@ import { useLayoutFallback } from './hooks/use-layout-fallback';
 
 const PASTE_METHODS: { key: PasteMethod; label: string }[] = [
     { key: 'ctrl_v', label: 'Standard (Ctrl+V)' },
-    { key: 'ctrl_shift_v', label: 'Terminal (Ctrl+Shift+V)' },
     { key: 'direct', label: 'Direct (type text)' },
 ];
 
@@ -20,6 +19,8 @@ export const PasteMethodSettings = () => {
     const { isFallback } = useLayoutFallback();
 
     const showFallbackBadge = isWayland && pasteMethod === 'direct' && isFallback;
+    // Preserve a legacy preference until the user explicitly selects a visible method.
+    const displayedPasteMethod = pasteMethod === 'ctrl_shift_v' ? '' : pasteMethod;
 
     return (
         <SettingsUI.Item>
@@ -36,12 +37,6 @@ export const PasteMethodSettings = () => {
                             {t('Fast and default option. Works in most applications, but not in terminals.')}
                         </li>
                         <li>
-                            <span className="font-bold text-sky-400">{t('Terminal: ')}</span>
-                            {t(
-                                'Designed for terminal applications. May conflict with some software (e.g. LibreOffice).'
-                            )}
-                        </li>
-                        <li>
                             <span className="font-bold text-sky-400">{t('Direct: ')}</span>
                             {t('Types text character by character. Works everywhere, but is the slowest option.')}
                         </li>
@@ -55,9 +50,9 @@ export const PasteMethodSettings = () => {
                     </p>
                 ) : null}
             </SettingsUI.Description>
-            <Select value={pasteMethod} onValueChange={setPasteMethod}>
+            <Select value={displayedPasteMethod} onValueChange={setPasteMethod}>
                 <SelectTrigger className="w-[200px]" data-testid="paste-method-select">
-                    <SelectValue />
+                    <SelectValue placeholder={t('Select a mode')} />
                 </SelectTrigger>
                 <SelectContent>
                     {PASTE_METHODS.map((method) => {
@@ -68,9 +63,7 @@ export const PasteMethodSettings = () => {
                             <SelectItem key={method.key} value={method.key}>
                                 {t(method.label)}
                                 {isExperimental ? (
-                                    <span className="ml-2 text-xs text-yellow-400">
-                                        ({t('Experimental')})
-                                    </span>
+                                    <span className="ml-2 text-xs text-yellow-400">({t('Experimental')})</span>
                                 ) : null}
                             </SelectItem>
                         );
