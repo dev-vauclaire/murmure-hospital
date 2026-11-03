@@ -4,6 +4,7 @@ import { Page } from '@/components/page';
 import { PasteMethodSettings } from './paste-method-settings/paste-method-settings';
 import { SoundSettings } from './sound-settings/sound-settings';
 import { MicSettings } from './mic-settings/mic-settings';
+import { RecordModeSettings } from './record-mode-settings/record-mode-settings';
 import { useTranslation } from '@/i18n';
 import { Settings } from 'lucide-react';
 
@@ -20,6 +21,8 @@ export const System = () => {
                     <div className="w-full space-y-6">
                         <SettingsUI.Section title={t('General')} icon={Settings}>
                             <MicSettings />
+                            <SettingsUI.Separator />
+                            <RecordModeSettings />
                             <SettingsUI.Separator />
                             <SoundSettings />
                             <SettingsUI.Separator />
