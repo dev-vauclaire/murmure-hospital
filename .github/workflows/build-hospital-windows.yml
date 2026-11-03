@@ -1,13 +1,23 @@
-name: Build MSI hospitalier
+name: Build Windows hospitalier
+run-name: Build ${{ inputs.installer_format }} - ${{ github.ref_name }}
 
 on:
     workflow_dispatch:
+        inputs:
+            installer_format:
+                description: Format d'installation
+                type: choice
+                required: true
+                default: exe
+                options:
+                    - exe
+                    - msi
 
 permissions:
     contents: read
 
 jobs:
-    build-msi:
+    build-windows:
         runs-on: windows-2022
         timeout-minutes: 60
         defaults:
@@ -19,6 +29,37 @@ jobs:
               uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
               with:
                   persist-credentials: false
+
+            - name: Select installer format
+              id: installer
+              env:
+                  REQUESTED_INSTALLER_FORMAT: ${{ inputs.installer_format }}
+              run: |
+                  switch -CaseSensitive ($env:REQUESTED_INSTALLER_FORMAT) {
+                      'exe' {
+                          $installerFormat = 'exe'
+                          $bundle = 'nsis'
+                          $filePattern = '*-setup.exe'
+                          $installScope = 'currentUser'
+                          $config = Get-Content -LiteralPath 'src-tauri/tauri.conf.json' -Raw | ConvertFrom-Json
+                          if ($config.bundle.windows.nsis.installMode -ne 'currentUser') {
+                              throw 'The EXE installer must be configured for the current user.'
+                          }
+                      }
+                      'msi' {
+                          $installerFormat = 'msi'
+                          $bundle = 'msi'
+                          $filePattern = '*.msi'
+                          $installScope = 'perMachine'
+                      }
+                      default {
+                          throw 'Unsupported installer format. Choose exe or msi.'
+                      }
+                  }
+                  "format=$installerFormat" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  "bundle=$bundle" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  "file_pattern=$filePattern" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  "install_scope=$installScope" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
             - name: Check reference settings
               run: |
@@ -115,21 +156,29 @@ jobs:
               working-directory: src-tauri
               run: 'cargo test --locked --lib settings::'
 
-            - name: Build the unsigned MSI
-              run: pnpm.cmd tauri build --bundles msi --ci --no-sign
+            - name: Build the unsigned installer
+              env:
+                  TAURI_BUNDLE: ${{ steps.installer.outputs.bundle }}
+              run: pnpm.cmd tauri build --bundles "$env:TAURI_BUNDLE" --ci --no-sign
 
-            - name: Prepare MSI and build metadata
+            - name: Prepare installer and build metadata
+              env:
+                  TAURI_BUNDLE: ${{ steps.installer.outputs.bundle }}
+                  INSTALLER_FILE_PATTERN: ${{ steps.installer.outputs.file_pattern }}
+                  INSTALLER_FORMAT: ${{ steps.installer.outputs.format }}
+                  INSTALLER_SCOPE: ${{ steps.installer.outputs.install_scope }}
               run: |
-                  $installers = @(Get-ChildItem -Path 'src-tauri/target/release/bundle/msi' -Filter '*.msi' -File -ErrorAction Stop)
+                  $bundleDirectory = Join-Path 'src-tauri/target/release/bundle' $env:TAURI_BUNDLE
+                  $installers = @(Get-ChildItem -LiteralPath $bundleDirectory -Filter $env:INSTALLER_FILE_PATTERN -File -ErrorAction Stop)
                   if ($installers.Count -ne 1) {
-                      throw 'Expected exactly one MSI installer.'
+                      throw 'Expected exactly one installer for the selected format.'
                   }
                   $commit = git rev-parse HEAD
                   if ($LASTEXITCODE -ne 0) {
                       throw 'The source commit could not be determined.'
                   }
                   $version = (Get-Content -LiteralPath 'package.json' -Raw | ConvertFrom-Json).version
-                  $artifactDirectory = 'hospital-msi-artifact'
+                  $artifactDirectory = 'hospital-windows-artifact'
                   New-Item -ItemType Directory -Path $artifactDirectory -ErrorAction Stop | Out-Null
                   $installer = $installers[0]
                   Copy-Item -LiteralPath $installer.FullName -Destination $artifactDirectory -ErrorAction Stop
@@ -141,6 +190,8 @@ jobs:
                       source_ref = $env:GITHUB_REF
                       version = $version
                       target = 'x86_64-pc-windows-msvc'
+                      installer_format = $env:INSTALLER_FORMAT
+                      install_scope = $env:INSTALLER_SCOPE
                       model_version = '1.3.0'
                       model_archive_sha256 = (Get-FileHash -LiteralPath $modelArchive -Algorithm SHA256).Hash.ToLowerInvariant()
                       installer = $installer.Name
@@ -149,11 +200,11 @@ jobs:
                   }
                   $metadata | ConvertTo-Json | Set-Content -LiteralPath "$artifactDirectory/build-info.json" -Encoding utf8
 
-            - name: Upload MSI test package
+            - name: Upload Windows test package
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
               with:
-                  name: murmure-hospital-windows-x64-${{ github.sha }}
-                  path: hospital-msi-artifact/
+                  name: murmure-hospital-windows-x64-${{ steps.installer.outputs.format }}-${{ github.sha }}
+                  path: hospital-windows-artifact/
                   retention-days: 7
                   compression-level: 0
                   if-no-files-found: error
