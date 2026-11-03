@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Page } from '@/components/page';
 import { Typography } from '@/components/typography';
+import { SettingsUI } from '@/components/settings-ui';
+import { Switch } from '@/components/switch';
+import { NumberInput } from '@/components/number-input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/select';
 import { useTranslation } from '@/i18n';
 import { useFormattingRules } from './hooks/use-formatting-rules';
 import { RuleCard } from '../../../components/rule-card';
@@ -54,7 +58,9 @@ const SortableRuleCard = ({ rule, ...props }: SortableRuleCardProps) => {
 
 export const FormattingRules = () => {
     const { t } = useTranslation();
-    const { settings, isLoading, addRule, updateRule, deleteRule, duplicateRule, reorderRules } = useFormattingRules();
+    const { settings, isLoading, updateBuiltInOption, addRule, updateRule, deleteRule, duplicateRule, reorderRules } =
+        useFormattingRules();
+    const thresholdInputRef = useRef<HTMLInputElement>(null);
     const [activeId, setActiveId] = useState<string | null>(null);
 
     const sensors = useSensors(
@@ -98,6 +104,86 @@ export const FormattingRules = () => {
             <Page.Header>
                 <Typography.MainTitle data-testid="formatting-rules-title">{t('Custom rules')}</Typography.MainTitle>
             </Page.Header>
+
+            <SettingsUI.Container>
+                <SettingsUI.Item>
+                    <SettingsUI.Description className="flex-1 min-w-0">
+                        <Typography.Title>{t('Convert text numbers to digits')}</Typography.Title>
+                        <Typography.Paragraph>
+                            {t('Automatically converts numbers written in letters to digits.')}
+                            <br />
+                            <span className="text-xs italic text-muted-foreground">
+                                {t('Example: "one" → "1", "twenty-three" → "23"')}
+                            </span>
+                        </Typography.Paragraph>
+                    </SettingsUI.Description>
+                    <Switch
+                        checked={settings.built_in.convert_text_numbers}
+                        onCheckedChange={(checked) => updateBuiltInOption('convert_text_numbers', checked)}
+                        aria-label={t('Convert text numbers to digits')}
+                        data-testid="option-convert-text-numbers"
+                    />
+                </SettingsUI.Item>
+                {settings.built_in.convert_text_numbers && (
+                    <>
+                        <SettingsUI.Separator />
+                        <SettingsUI.Item>
+                            <SettingsUI.Description className="flex-1 min-w-0">
+                                <Typography.Title>{t('Language for number conversion')}</Typography.Title>
+                                <Typography.Paragraph>
+                                    {t('Choose the language for text-to-number conversion')}
+                                </Typography.Paragraph>
+                            </SettingsUI.Description>
+                            <Select
+                                value={settings.built_in.text_numbers_language}
+                                onValueChange={(value) => updateBuiltInOption('text_numbers_language', value)}
+                            >
+                                <SelectTrigger
+                                    className="w-45"
+                                    aria-label={t('Language for number conversion')}
+                                    data-testid="number-conversion-language-select"
+                                >
+                                    <SelectValue placeholder={t('Select language')} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="en">English</SelectItem>
+                                    <SelectItem value="fr">Français</SelectItem>
+                                    <SelectItem value="de">Deutsch</SelectItem>
+                                    <SelectItem value="it">Italiano</SelectItem>
+                                    <SelectItem value="es">Español</SelectItem>
+                                    <SelectItem value="nl">Nederlands</SelectItem>
+                                    <SelectItem value="pt">Português</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </SettingsUI.Item>
+                        <SettingsUI.Separator />
+                        <SettingsUI.Item>
+                            <SettingsUI.Description className="flex-1 min-w-0">
+                                <Typography.Title>{t('Conversion threshold')}</Typography.Title>
+                                <Typography.Paragraph>
+                                    {t('Do not convert numbers that are strictly below this threshold.')}
+                                </Typography.Paragraph>
+                            </SettingsUI.Description>
+                            <div className="w-30">
+                                <NumberInput
+                                    ref={thresholdInputRef}
+                                    value={settings.built_in.text_numbers_threshold}
+                                    onValueChange={(value) =>
+                                        updateBuiltInOption('text_numbers_threshold', value ?? 10)
+                                    }
+                                    isAllowed={({ floatValue }) =>
+                                        floatValue === undefined || (floatValue >= 0 && floatValue <= 50)
+                                    }
+                                    min={0}
+                                    max={50}
+                                    aria-label={t('Conversion threshold')}
+                                    data-testid="number-conversion-threshold-input"
+                                />
+                            </div>
+                        </SettingsUI.Item>
+                    </>
+                )}
+            </SettingsUI.Container>
 
             <div id="custom-rules" className="space-y-4">
                 <Typography.Paragraph>
