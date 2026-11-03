@@ -1,0 +1,159 @@
+name: Build MSI hospitalier
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    build-msi:
+        runs-on: windows-2022
+        timeout-minutes: 60
+        defaults:
+            run:
+                shell: pwsh
+
+        steps:
+            - name: Checkout source
+              uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+              with:
+                  persist-credentials: false
+
+            - name: Check reference settings
+              run: |
+                  $referencePath = 'resources/hospital/settings.json'
+                  if (-not (Test-Path -LiteralPath $referencePath -PathType Leaf)) {
+                      throw 'The hospital reference settings file is missing.'
+                  }
+                  git ls-files --error-unmatch -- $referencePath | Out-Null
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'The hospital reference settings file must be tracked by Git.'
+                  }
+                  try {
+                      $reference = Get-Content -LiteralPath $referencePath -Raw | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+                  } catch {
+                      throw 'The hospital reference settings file contains invalid JSON.'
+                  }
+                  if ($reference -isnot [System.Collections.IDictionary]) {
+                      throw 'The hospital reference settings must be a JSON object.'
+                  }
+
+            - name: Set up Node.js
+              uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+              with:
+                  node-version: '22'
+
+            - name: Set up Rust MSVC
+              uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
+              with:
+                  toolchain: '1.98.1'
+                  targets: x86_64-pc-windows-msvc
+
+            - name: Cache Rust dependencies
+              uses: swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+              with:
+                  workspaces: './src-tauri -> target'
+
+            - name: Install pnpm
+              run: npm.cmd install -g pnpm@10.19.0 --ignore-scripts
+
+            - name: Install or locate NASM
+              run: |
+                  $nasmCommand = Get-Command nasm.exe -ErrorAction SilentlyContinue
+                  if ($nasmCommand) {
+                      $nasmExecutable = $nasmCommand.Source
+                  } else {
+                      choco install nasm --yes --no-progress --limit-output
+                      if ($LASTEXITCODE -ne 0) {
+                          throw 'NASM installation failed.'
+                      }
+                      $machinePath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine')
+                      $userPath = [System.Environment]::GetEnvironmentVariable('Path', 'User')
+                      $env:Path = "$machinePath;$userPath;$env:Path"
+                      $nasmCommand = Get-Command nasm.exe -ErrorAction SilentlyContinue
+                      if ($nasmCommand) {
+                          $nasmExecutable = $nasmCommand.Source
+                      } else {
+                          $nasmExecutable = Join-Path $env:ProgramFiles 'NASM/nasm.exe'
+                          if (-not (Test-Path -LiteralPath $nasmExecutable -PathType Leaf)) {
+                              throw 'The NASM executable could not be located.'
+                          }
+                      }
+                      $nasmDirectory = Split-Path -Parent $nasmExecutable
+                      $nasmDirectory | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+                  }
+                  & $nasmExecutable -v
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'NASM could not be executed.'
+                  }
+
+            - name: Install frontend dependencies
+              run: pnpm.cmd install --frozen-lockfile --ignore-scripts
+
+            - name: Download and check the speech model
+              run: |
+                  $modelArchive = Join-Path $env:RUNNER_TEMP 'murmure-parakeet-1.3.0.zip'
+                  Invoke-WebRequest -Uri 'https://github.com/Kieirra/murmure-model/releases/download/1.3.0/parakeet-tdt-0.6b-v3-int8.zip' -OutFile $modelArchive -ErrorAction Stop
+                  Expand-Archive -LiteralPath $modelArchive -DestinationPath 'resources' -Force -ErrorAction Stop
+                  $modelDirectory = 'resources/parakeet-tdt-0.6b-v3-int8'
+                  foreach ($modelFile in @('encoder-model.int8.onnx', 'decoder_joint-model.int8.onnx', 'nemo128.onnx', 'vocab.txt')) {
+                      $modelPath = Join-Path $modelDirectory $modelFile
+                      if (-not (Test-Path -LiteralPath $modelPath -PathType Leaf) -or (Get-Item -LiteralPath $modelPath).Length -eq 0) {
+                          throw "The speech model is missing a required file: $modelFile"
+                      }
+                  }
+                  if (-not (Test-Path -LiteralPath 'resources/tokenizer.json' -PathType Leaf)) {
+                      throw 'The tokenizer resource is missing.'
+                  }
+
+            # Tauri's build script needs this resource directory for Rust tests.
+            - name: Build SmartMic resources
+              run: pnpm.cmd build:smartmic
+
+            - name: Test settings and the hospital reference file
+              working-directory: src-tauri
+              run: 'cargo test --locked --lib settings::'
+
+            - name: Build the unsigned MSI
+              run: pnpm.cmd tauri build --bundles msi --ci --no-sign
+
+            - name: Prepare MSI and build metadata
+              run: |
+                  $installers = @(Get-ChildItem -Path 'src-tauri/target/release/bundle/msi' -Filter '*.msi' -File -ErrorAction Stop)
+                  if ($installers.Count -ne 1) {
+                      throw 'Expected exactly one MSI installer.'
+                  }
+                  $commit = git rev-parse HEAD
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'The source commit could not be determined.'
+                  }
+                  $version = (Get-Content -LiteralPath 'package.json' -Raw | ConvertFrom-Json).version
+                  $artifactDirectory = 'hospital-msi-artifact'
+                  New-Item -ItemType Directory -Path $artifactDirectory -ErrorAction Stop | Out-Null
+                  $installer = $installers[0]
+                  Copy-Item -LiteralPath $installer.FullName -Destination $artifactDirectory -ErrorAction Stop
+                  $installerHash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+                  "$installerHash  $($installer.Name)" | Set-Content -LiteralPath "$artifactDirectory/SHA256SUMS.txt" -Encoding ascii
+                  $modelArchive = Join-Path $env:RUNNER_TEMP 'murmure-parakeet-1.3.0.zip'
+                  $metadata = [ordered]@{
+                      commit = $commit
+                      source_ref = $env:GITHUB_REF
+                      version = $version
+                      target = 'x86_64-pc-windows-msvc'
+                      model_version = '1.3.0'
+                      model_archive_sha256 = (Get-FileHash -LiteralPath $modelArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+                      installer = $installer.Name
+                      installer_sha256 = $installerHash
+                      signed = $false
+                  }
+                  $metadata | ConvertTo-Json | Set-Content -LiteralPath "$artifactDirectory/build-info.json" -Encoding utf8
+
+            - name: Upload MSI test package
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+              with:
+                  name: murmure-hospital-windows-x64-${{ github.sha }}
+                  path: hospital-msi-artifact/
+                  retention-days: 7
+                  compression-level: 0
+                  if-no-files-found: error

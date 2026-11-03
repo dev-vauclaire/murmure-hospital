@@ -198,6 +198,48 @@ mod tests {
     }
 
     #[test]
+    fn hospital_reference_settings_are_valid_and_portable() {
+        let directory = TestDirectory::new();
+        let bundled_path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../resources/hospital/settings.json");
+        let content = initialize_settings_file(&directory.settings_path(), Some(bundled_path))
+            .expect("Hospital reference settings must exist and match the native settings format");
+        let stored_content = fs::read_to_string(directory.settings_path())
+            .expect("Initialized user settings must be readable");
+
+        assert!(
+            stored_content == content,
+            "Hospital reference settings must be copied without modification"
+        );
+
+        let settings = load_settings_from_path(&directory.settings_path(), || None);
+
+        assert!(
+            settings.mic_id.is_none() && settings.mic_label.is_none(),
+            "Hospital reference settings must not select a microphone"
+        );
+        assert!(
+            settings.smartmic_machine_id.is_none(),
+            "Hospital reference settings must not contain a machine identifier"
+        );
+        assert!(
+            settings.smartmic_bind_address.is_none(),
+            "Hospital reference settings must not contain a machine-specific bind address"
+        );
+        assert!(
+            !settings.onboarding.used_home_shortcut
+                && !settings.onboarding.transcribed_outside_app
+                && !settings.onboarding.added_dictionary_word
+                && !settings.onboarding.congrats_dismissed,
+            "Hospital reference settings must start with fresh onboarding"
+        );
+        assert!(
+            !settings.wayland_notice_dismissed && !settings.wayland_clipboard_fallback_dismissed,
+            "Hospital reference settings must not contain dismissed Wayland notices"
+        );
+    }
+
+    #[test]
     fn fresh_profile_copies_and_loads_bundled_settings() {
         let directory = TestDirectory::new();
         let content = "{\n  \"language\": \"fr\",\n  \"sound_volume\": 37,\n  \"paste_method\": \"direct\"\n}";
