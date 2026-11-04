@@ -61,23 +61,25 @@ jobs:
                   "file_pattern=$filePattern" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
                   "install_scope=$installScope" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-            - name: Check reference settings
+            - name: Check hospital default files
               run: |
-                  $referencePath = 'resources/hospital/settings.json'
-                  if (-not (Test-Path -LiteralPath $referencePath -PathType Leaf)) {
-                      throw 'The hospital reference settings file is missing.'
-                  }
-                  git ls-files --error-unmatch -- $referencePath | Out-Null
-                  if ($LASTEXITCODE -ne 0) {
-                      throw 'The hospital reference settings file must be tracked by Git.'
-                  }
-                  try {
-                      $reference = Get-Content -LiteralPath $referencePath -Raw | ConvertFrom-Json -AsHashtable -ErrorAction Stop
-                  } catch {
-                      throw 'The hospital reference settings file contains invalid JSON.'
-                  }
-                  if ($reference -isnot [System.Collections.IDictionary]) {
-                      throw 'The hospital reference settings must be a JSON object.'
+                  foreach ($referenceName in @('default-settings.json', 'default-dictionnary.json', 'default-formatting-rules.json')) {
+                      $referencePath = Join-Path 'resources/hospital' $referenceName
+                      if (-not (Test-Path -LiteralPath $referencePath -PathType Leaf)) {
+                          throw "A hospital default file is missing: $referenceName"
+                      }
+                      git ls-files --error-unmatch -- $referencePath | Out-Null
+                      if ($LASTEXITCODE -ne 0) {
+                          throw "Hospital default files must be tracked by Git: $referenceName"
+                      }
+                      try {
+                          $reference = Get-Content -LiteralPath $referencePath -Raw | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+                      } catch {
+                          throw "A hospital default file contains invalid JSON: $referenceName"
+                      }
+                      if ($reference -isnot [System.Collections.IDictionary]) {
+                          throw "Hospital default files must be JSON objects: $referenceName"
+                      }
                   }
 
             - name: Set up Node.js
@@ -152,9 +154,15 @@ jobs:
             - name: Build SmartMic resources
               run: pnpm.cmd build:smartmic
 
-            - name: Test settings and the hospital reference file
+            - name: Test hospital defaults and settings
               working-directory: src-tauri
-              run: 'cargo test --locked --lib settings::'
+              run: |
+                  foreach ($testFilter in @('settings::', 'dictionary::store::', 'formatting_rules::store::', 'utils::defaults::')) {
+                      cargo test --locked --lib $testFilter
+                      if ($LASTEXITCODE -ne 0) {
+                          throw "Hospital defaults tests failed: $testFilter"
+                      }
+                  }
 
             - name: Build the unsigned installer
               env:

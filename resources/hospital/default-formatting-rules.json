@@ -1,0 +1,70 @@
+{
+    "settings": {
+        "built_in": {
+            "short_text_correction": 0,
+            "space_before_punctuation": false,
+            "trailing_space": true,
+            "convert_text_numbers": false,
+            "text_numbers_language": "fr",
+            "text_numbers_threshold": 0.0
+        },
+        "rules": [
+            {
+                "id": "hospital-ponctuation-commandes-vocales",
+                "name": "Ponctuation automatique des commandes vocales",
+                "trigger": "(?i)(\\b(?:insérer[ \\t]+un[ \\t]+point|insérer[ \\t]+une[ \\t]+virgule|saut[ \\t]+de[ \\t]+ligne|nouveau[ \\t]+paragraphe|ouvrir[ \\t]+les[ \\t]+guillemets|fermer[ \\t]+les[ \\t]+guillemets)\\b)[.,]+[ \\t]*",
+                "replacement": "${1} ",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-point",
+                "name": "Insérer un point",
+                "trigger": "(?i)[ \\t]*\\binsérer[ \\t]+un[ \\t]+point\\b",
+                "replacement": ".",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-une-virgule",
+                "name": "Insérer une virgule",
+                "trigger": "(?i)[ \\t]*\\binsérer[ \\t]+une[ \\t]+virgule\\b",
+                "replacement": ",",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-saut-de-ligne",
+                "name": "Saut de ligne",
+                "trigger": "(?i)[ \\t]*\\bsaut[ \\t]+de[ \\t]+ligne\\b[ \\t]*",
+                "replacement": "\n",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-nouveau-paragraphe",
+                "name": "Nouveau paragraphe",
+                "trigger": "(?i)[ \\t]*\\bnouveau[ \\t]+paragraphe\\b[ \\t]*",
+                "replacement": "\n\n",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-ouvrir-les-guillemets",
+                "name": "Ouvrir les guillemets",
+                "trigger": "(?i)\\bouvrir[ \\t]+les[ \\t]+guillemets\\b[ \\t]*",
+                "replacement": "\"",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-fermer-les-guillemets",
+                "name": "Fermer les guillemets",
+                "trigger": "(?i)[ \\t]*\\bfermer[ \\t]+les[ \\t]+guillemets\\b",
+                "replacement": "\"",
+                "enabled": true,
+                "match_mode": "regex"
+            }
+        ]
+    }
+}

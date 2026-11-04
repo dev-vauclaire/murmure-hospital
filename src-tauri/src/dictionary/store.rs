@@ -1,8 +1,35 @@
-use std::fs;
-use tauri::AppHandle;
-use tauri_plugin_store::StoreExt;
+use std::{fs, sync::Arc};
+use tauri::{AppHandle, Wry};
+use tauri_plugin_store::Store;
 
 use crate::dictionary::{normalize_import_content, DictionaryError};
+
+fn open_store(app: &AppHandle) -> Result<Arc<Store<Wry>>, String> {
+    crate::utils::defaults::store_with_defaults(
+        app,
+        "dictionary.json",
+        "hospital/default-dictionnary.json",
+        validate_bundled_dictionary,
+    )
+}
+
+fn validate_bundled_dictionary(value: &serde_json::Value) -> Result<(), String> {
+    let words = value
+        .as_object()
+        .ok_or_else(|| "Bundled dictionary must be a JSON object".to_string())?;
+    for (word, languages) in words {
+        if word.trim().is_empty()
+            || !languages
+                .as_array()
+                .is_some_and(|languages| languages.iter().all(serde_json::Value::is_string))
+        {
+            return Err(
+                "Bundled dictionary does not match the native dictionary format".to_string(),
+            );
+        }
+    }
+    Ok(())
+}
 
 fn contains_word_case_insensitive(words: &[String], word: &str) -> bool {
     words.iter().any(|w| w.eq_ignore_ascii_case(word))
@@ -12,12 +39,12 @@ fn contains_word_case_insensitive(words: &[String], word: &str) -> bool {
 /// ignored on read and written empty, so the on-disk format stays compatible
 /// with older versions in both directions.
 pub fn load(app: &AppHandle) -> Result<Vec<String>, String> {
-    let store = app.store("dictionary.json").map_err(|e| e.to_string())?;
+    let store = open_store(app)?;
     Ok(store.entries().into_iter().map(|(word, _)| word).collect())
 }
 
 pub fn save(app: &AppHandle, words: &[String]) -> Result<(), String> {
-    let store = app.store("dictionary.json").map_err(|e| e.to_string())?;
+    let store = open_store(app)?;
     store.reset();
     for word in words {
         store.set(word, serde_json::json!([]));
@@ -90,6 +117,70 @@ pub fn import_dictionary(app: &AppHandle, file_path: String) -> Result<(), Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hospital_dictionary_model_matches_the_native_format() {
+        let value = serde_json::from_str(include_str!(
+            "../../../resources/hospital/default-dictionnary.json"
+        ))
+        .expect("Hospital dictionary model must contain valid JSON");
+
+        assert!(validate_bundled_dictionary(&value).is_ok());
+    }
+
+    #[test]
+    fn hospital_dictionary_entries_can_be_used_for_phrase_boosting() {
+        use crate::engine::helpers::{load_tokenizer, tokenize_word_to_ids, word_variants};
+
+        let value: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../resources/hospital/default-dictionnary.json"
+        ))
+        .unwrap_or_else(|_| panic!("Hospital dictionary model must contain valid JSON"));
+        let entries = value
+            .as_object()
+            .expect("Hospital dictionary model must be a JSON object");
+        assert!(
+            !entries.is_empty(),
+            "Hospital dictionary must contain entries"
+        );
+
+        let tokenizer_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../resources/tokenizer.json");
+        let tokenizer = load_tokenizer(Some(&tokenizer_path))
+            .expect("Bundled tokenizer must be available for dictionary validation");
+
+        for entry in entries.keys() {
+            assert!(
+                word_variants(entry)
+                    .iter()
+                    .any(|variant| tokenize_word_to_ids(&tokenizer, variant).is_some()),
+                "Every hospital dictionary entry must have a tokenizable variant"
+            );
+        }
+    }
+
+    #[test]
+    fn bundled_dictionary_accepts_empty_and_legacy_language_lists() {
+        for value in [
+            serde_json::json!({}),
+            serde_json::json!({"Terme fictif": [], "Exemple": ["fr", "en"]}),
+        ] {
+            assert!(validate_bundled_dictionary(&value).is_ok());
+        }
+    }
+
+    #[test]
+    fn bundled_dictionary_rejects_invalid_structures_without_exposing_values() {
+        for value in [
+            serde_json::json!([]),
+            serde_json::json!({"synthetic-private-word": "fr"}),
+            serde_json::json!({"synthetic-private-word": [42]}),
+            serde_json::json!({" ": []}),
+        ] {
+            let error = validate_bundled_dictionary(&value).unwrap_err();
+            assert!(!error.contains("synthetic-private-word"));
+        }
+    }
 
     #[test]
     fn test_validate_dictionary_format_valid_multiple_words() {

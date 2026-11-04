@@ -1,9 +1,10 @@
 use std::{
-    fs,
-    io::{self, Write},
+    fs, io,
     path::{Path, PathBuf},
 };
 use tauri::{AppHandle, Manager};
+
+use crate::utils::defaults::write_new_file;
 
 use super::helpers::{migrate_legacy_paste_method, normalize_result_panel_mode};
 use super::types::AppSettings;
@@ -26,7 +27,7 @@ pub fn load_settings(app: &AppHandle) -> AppSettings {
     };
 
     load_settings_from_path(&path, || {
-        crate::utils::resources::resolve_resource_path(app, "hospital/settings.json")
+        crate::utils::resources::resolve_resource_path(app, "hospital/default-settings.json")
     })
 }
 
@@ -90,28 +91,13 @@ fn initialize_settings_file(
             .map_err(|error| format!("Failed to serialize default settings: {error}"))?,
     };
 
-    match create_settings_file(path, &content) {
+    match write_new_file(path, &content) {
         Ok(()) => Ok(content),
         // Another initializer may have created the profile after our first read.
         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => fs::read_to_string(path)
             .map_err(|error| format!("Failed to read existing user settings: {error}")),
         Err(error) => Err(format!("Failed to create user settings: {error}")),
     }
-}
-
-fn create_settings_file(path: &Path, content: &str) -> io::Result<()> {
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)?;
-    if let Err(error) = file.write_all(content.as_bytes()) {
-        drop(file);
-        if let Err(cleanup_error) = fs::remove_file(path) {
-            log::error!("Failed to remove incomplete user settings: {cleanup_error}");
-        }
-        return Err(error);
-    }
-    Ok(())
 }
 
 pub fn save_settings(app: &AppHandle, settings: &AppSettings) -> Result<(), String> {
@@ -200,8 +186,8 @@ mod tests {
     #[test]
     fn hospital_reference_settings_are_valid_and_portable() {
         let directory = TestDirectory::new();
-        let bundled_path =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../resources/hospital/settings.json");
+        let bundled_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../resources/hospital/default-settings.json");
         let content = initialize_settings_file(&directory.settings_path(), Some(bundled_path))
             .expect("Hospital reference settings must exist and match the native settings format");
         let stored_content = fs::read_to_string(directory.settings_path())

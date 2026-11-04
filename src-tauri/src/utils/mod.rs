@@ -1,3 +1,4 @@
+pub mod defaults;
 pub mod enigo_session;
 pub mod log_watchdog;
 pub mod platform;
