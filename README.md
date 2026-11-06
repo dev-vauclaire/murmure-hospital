@@ -1,159 +1,114 @@
-# Murmure
+# Murmure Hospital
 
-A privacy-first, open-source speech-to-text application that runs entirely on your machine, powered by a neural network via NVIDIA’s [Parakeet TDT 0.6B v3 model](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) for fast, local transcription. Murmure turns your voice into text with no internet connection and zero data collection, and supports 25 European languages.
+Adaptation de [Murmure](https://github.com/Kieirra/murmure) pour Vauclaire, dans le cadre de la reconnaissance vocale portée par l'intelligence artificielle.
 
-Learn more on the [official website](https://murmure.al1x-ai.com/) | [Documentation](https://docs.murmure.app)
+L'objectif est d'effectuer les calculs de reconnaissance sur les postes utilisateurs, pour répartir la charge et traiter les dictées localement, sans API de transcription cloud.
 
-![demo](public/murmure-demo.webp)
+## Capitalisation sur Murmure
 
-## Features
+Après étude de Handy et Murmure, nous avons retenu **Murmure pour son dictionnaire personnalisable et ses commandes vocales de mise en forme**.
 
-- **Privacy First**: All processing happens locally on your device. No data ever leaves your computer.
-- **No Telemetry**: Zero tracking, zero analytics. Your data stays yours, always.
-- **Open Source**: Free and open source software. Inspect, modify, and contribute.
-- **Powered by [Parakeet TDT 0.6B v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)**: NVIDIA’s latest state-of-the-art speech recognition model runs entirely on-device for fast, low-latency transcription.
-- **Multilingual**: Supports 25 languages!
+Cette distribution repose sur la **version officielle 2.0.3**. Elle conserve le moteur Parakeet, l'insertion du texte dans les applications et l'architecture React/TypeScript + Rust/Tauri. Les adaptations restent limitées pour faciliter la maintenance et l'intégration des futures évolutions officielles.
 
-<details>
-<summary>List of supported languages</summary>
-Bulgarian (bg), Croatian (hr), Czech (cs), Danish (da), Dutch (nl), English (en), Estonian (et), Finnish (fi), French (fr), German (de), Greek (el), Hungarian (hu), Italian (it), Latvian (lv), Lithuanian (lt), Maltese (mt), Polish (pl), Portuguese (pt), Romanian (ro), Slovak (sk), Slovenian (sl), Spanish (es), Swedish (sv), Russian (ru), Ukrainian (uk)
-</details>
+La branche `main` conserve la référence officielle ; `hospital/main` regroupe les adaptations hospitalières. Les mises à jour du projet d'origine doivent être examinées et testées avant intégration.
 
-## Usage
+## Changements effectués
 
-Murmure provides a clean and focused speech-to-text experience.
-Once launched, simply start recording your voice. The text appears instantly, processed directly on your computer.
+- **Interface simplifiée** : accès à l'accueil, au dictionnaire, aux règles personnalisées et à une sélection de paramètres système. Les extensions, règles générales, réglages des raccourcis et import/export global de configuration sont masqués.
+- **Réglages conservés** : microphone, sons et volume, mode de dictée « appuyer pour parler » ou bascule, insertion Standard ou Direct, conversion des nombres avec langue et seuil.
+- **Personnalisation visuelle** : ajout du logo Vauclaire à côté de celui de Murmure, avec une taille harmonisée.
+- **Liens et mises à jour** : retrait des accès « Signaler un bug », « Notes de version » et « Vérifier les mises à jour » dans la sidebar. Le lien « Soutenir Murmure » est conservé et le composant de vérification des mises à jour n'est plus monté.
+- **Configuration initiale commune** : paramètres, dictionnaire et commandes vocales embarqués lors du build, puis utilisés pour initialiser les fichiers utilisateur absents.
+- **Confidentialité** : historique persistant, conservation des enregistrements audio, logs, API locale et Smart Speech Mic désactivés par défaut.
+- **Build Windows manuel sur GitHub Actions**, avec choix d'un installateur EXE ou MSI et tests ciblés sur la configuration.
 
-Typical use cases include:
+Les restrictions de ce premier jalon portent sur l'interface : les fonctionnalités masquées et le plugin natif de mise à jour restent présents dans le backend. Il ne s'agit pas encore d'une politique de verrouillage administrée.
 
-- Dictating to any AI prompt (Cursor, ChatGPT, Mistral, Claude code, etc.)
-- Writing notes hands-free
-- Capturing creative ideas or dictation
-- Post processing with a local LLM to translate, fix grammar, etc.
+### Fichiers de référence à préparer avant le build
 
-Because all computation is local, no network connection is required.
+| Fichier                                                                                                | Rôle                                                                                                     |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| [`resources/hospital/default-settings.json`](resources/hospital/default-settings.json)                 | Paramètres initiaux de l'application.                                                                    |
+| [`resources/hospital/default-dictionnary.json`](resources/hospital/default-dictionnary.json)           | Dictionnaire initial, incluant les expressions des commandes vocales pour favoriser leur reconnaissance. |
+| [`resources/hospital/default-formatting-rules.json`](resources/hospital/default-formatting-rules.json) | Règles initiales de ponctuation, retours à la ligne, paragraphes et guillemets.                          |
 
-## Installation
+Ces fichiers utilisent les formats JSON natifs de Murmure. Chaque fichier utilisateur absent est initialisé indépendamment ; les fichiers existants ne sont pas écrasés par ce mécanisme.
 
-### Windows (Official)
+Sous Windows, les fichiers actifs sont `settings.json`, `dictionary.json` et `formatting_rules.json`, dans `%APPDATA%\com.al1x-ai.murmure\`. Réinstaller l'application ne réinitialise pas un profil existant. Pour tester les valeurs initiales, quitter complètement Murmure puis renommer ce dossier pour en conserver une sauvegarde avant de relancer l'application.
 
-> [!IMPORTANT]
-> Murmure requires **Windows 10 or later**. Older versions (such as Windows 8.1) are not supported and may result in missing system libraries (e.g. `dxcore.dll`).
+## Lancer en local
 
-Multiple installation methods are available:
+### Prérequis
 
-- Using a `.msi` or `setup.exe` file:
-    1. Go to the [release](https://github.com/Kieirra/murmure/releases) page and download the latest Murmure_x64.msi (or Murmure_x64-setup.exe).
-    2. Run the installer and follow the setup wizard.
+- Git, Node.js 22 et pnpm 10.19.0.
+- Rust et Cargo ; le workflow Windows utilise Rust 1.98.1.
+- Les [dépendances système de Tauri 2](https://v2.tauri.app/start/prerequisites/) pour votre système. Sous Ubuntu, prévoir également les bibliothèques de développement audio et clavier, notamment `libasound2-dev` et `libxkbcommon-dev`.
+- Sous Windows : outils de compilation C++ MSVC, WebView2 et NASM, comme dans le workflow.
 
-- Via WinGet:
-    1. Open the `Console` app via the Windows start menu.
-    2. Inside the console, paste `winget install Kieirra.Murmure` and follow the instructions. (`--scope user` will be available in the future)
+### Récupérer le projet et le modèle
 
-> [!IMPORTANT]
-> Murmure requires the [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) to work on Windows. This package is present on most computers, but if you encounter the error message `The code execution cannot proceed because MSVCP140.dll was not found. Reinstalling the program may fix this problem.`, download and install the package from the official page or use this direct download link: [https://aka.ms/vc14/vc_redist.x64.exe](https://aka.ms/vc14/vc_redist.x64.exe)
+```sh
+git clone --branch hospital/main https://github.com/dev-vauclaire/murmure-hospital.git murmure
+cd murmure
+```
 
-> ⚠️ Antivirus Notice : Some users reported that Kaspersky may block Murmure. If needed, please add Murmure as an exclusion in your antivirus settings.
+Si le dépôt est déjà cloné, se placer dans sa racine, dans le dossier contenant `package.json`.
 
-### Linux (Official)
+Télécharger le [modèle Parakeet 1.3.0 utilisé par cette version](https://github.com/Kieirra/murmure-model/releases/download/1.3.0/parakeet-tdt-0.6b-v3-int8.zip), puis extraire son dossier dans `resources/` pour obtenir :
 
-> [!NOTE]
-> **Wayland**: Two shortcut modes are available. KDE Plasma 6, Hyprland, and Sway use the `xdg-desktop-portal` GlobalShortcuts portal with no manual setup. GNOME defaults to CLI mode: you must configure a custom OS shortcut before using Murmure, and Push-to-talk is not available. See the [Linux installation guide](https://docs.murmure.app/getting-started/linux/) and the [shortcut configuration guide](https://docs.murmure.app/configure-shortcuts-on-linux/).
+```text
+resources/parakeet-tdt-0.6b-v3-int8/
+├── encoder-model.int8.onnx
+├── decoder_joint-model.int8.onnx
+├── nemo128.onnx
+└── vocab.txt
+```
 
-Multiple installation methods are available:
+### Démarrer l'application
 
-- Quick install via terminal (Debian-based distributions):
+```sh
+pnpm install --frozen-lockfile
+pnpm tauri dev
+```
 
-    ```sh
-    curl -fsSL https://raw.githubusercontent.com/Kieirra/murmure/main/install.sh | sh
-    ```
+L'installation prépare aussi les ressources SmartMic attendues par le projet d'origine. Si elle a été faite avec `--ignore-scripts`, exécuter `pnpm build:smartmic` avant de démarrer Tauri.
 
-- Using a `.deb` file (Debian-based distributions):
-    1. Go to the [release](https://github.com/Kieirra/murmure/releases) page and download the latest `Murmure_amd64.deb`.
-    2. Install it: `sudo dpkg -i Murmure_amd64.deb`
+`pnpm tauri dev` lance Vite et l'application de bureau, avec rechargement des modifications du frontend. `pnpm dev` seul lance uniquement le frontend et ne permet pas de tester les fonctions natives. La première compilation Rust peut prendre plusieurs minutes.
 
-- Using an AppImage:
-    1. Download `Murmure_amd64.AppImage` from the [release](https://github.com/Kieirra/murmure/releases) page.
-    2. Make it executable: `chmod +x Murmure_amd64.AppImage`
-    3. Run the AppImage.
+Sous Ubuntu, si une erreur `GLIBC_PRIVATE` mentionne une bibliothèque provenant de `/snap/`, relancer depuis un terminal système extérieur à une application installée via Snap.
 
-### MacOS (Official)
+## Logique de build sur GitHub Actions
 
-1. Download **Murmure_aarch64_darwin.dmg** from the [release](https://github.com/Kieirra/murmure/releases) page
-2. Drag Murmure to the Applications folder, then open it from there.
-3. Murmure should ask for permissions to access your microphone and accessibility.
-4. Restart Murmure for the permissions to take effect.
+Le workflow [`Build Windows hospitalier`](.github/workflows/build-hospital-windows.yml) compile l'application sur un runner Windows, même lorsque le développement se fait sous Linux. Il se déclenche manuellement.
 
-> [!IMPORTANT]
-> **Updating Murmure on macOS from 1.6.0:** If you experience issues with Murmure and the shortcuts are not working, please do this exactly in this order, (and "Remove" means not only un-toggling but really removing completely Murmure from the list) :
+### Lancer un build
 
-1. Remove Murmure from System Settings → Privacy & Security → Accessibility.
-2. Remove Murmure from System Settings → Privacy & Security → Input monitoring.
-3. Install the last version
-4. Launch Murmure.
-5. Re-grant the Accessibility
-6. Re-grant the Input monitoring permission
-7. Restart Murmure.
+1. Préparer les trois fichiers JSON de référence, puis faire commiter et pousser les modifications sur la branche à construire. Le workflow utilise les fichiers présents sur GitHub, pas ceux restés uniquement en local.
+2. Ouvrir [Actions → Build Windows hospitalier](https://github.com/dev-vauclaire/murmure-hospital/actions/workflows/build-hospital-windows.yml).
+3. Cliquer sur **Run workflow**, sélectionner **`hospital/main`** et choisir `installer_format` :
+    - **`exe`** : installateur NSIS pour le compte utilisateur courant, choix par défaut.
+    - **`msi`** : installateur pour la machine.
+4. Lancer le workflow, attendre sa réussite, puis télécharger l'artefact dans la page de l'exécution.
 
-it should work. It's a bit painful but you will not do it again with the next version, it's because 1.6.0 have the same name but is not detected as the same application... so macos is lost.
+### Ce que fait le workflow
 
-### MacOS - Intel (Official)
+Il vérifie les trois JSON de référence suivis dans Git, prépare les outils et dépendances, télécharge le modèle Parakeet, construit les ressources SmartMic et exécute les tests Rust ciblés des paramètres, du dictionnaire, du formatage et de l'initialisation.
 
-1. Download **Murmure_x86_64_darwin.dmg** from the [release](https://github.com/Kieirra/murmure/releases) page
-2. Drag Murmure to the Applications folder, then open it from there.
-3. Murmure should ask for permissions to access your microphone and accessibility.
-4. Restart Murmure for the permissions to take effect.
+Tauri compile ensuite le frontend et le backend pour **Windows x64**, embarque le modèle et les fichiers de référence, puis génère l'installateur choisi.
 
-The same upgrade note from 1.6.0 applies. See the MacOS section above.
+L'artefact `murmure-hospital-windows-x64-<format>-<commit>` est conservé **7 jours** et contient :
 
-## CLI Import (1.8.0)
+- L'installateur EXE ou MSI **non signé**. L'EXE est un installateur, pas une application portable.
+- `SHA256SUMS.txt`, pour contrôler l'intégrité du fichier.
+- `build-info.json`, avec le commit, la version et les informations de construction.
 
-Murmure supports importing a `.murmure` configuration file via the command line (`murmure import config.murmure`), useful for mass deployment or sharing settings across machines. A `--strategy merge` option is available to keep existing settings. See the [CLI documentation](https://docs.murmure.app/features/cli/) for details.
+Ce workflow ne crée pas de Release et ne déploie rien sur les postes. Les essais fonctionnels restent à effectuer sur Windows, notamment le chargement des valeurs initiales sur un profil neuf et la conservation des préférences sur un profil existant.
 
-## Changelog
+## Contributions, licences et attributions
 
-See [CHANGELOG.md](./CHANGELOG.md).
+Les retours, corrections et améliorations sont les bienvenus sur [ce dépôt](https://github.com/dev-vauclaire/murmure-hospital). Voir [CONTRIBUTING.md](CONTRIBUTING.md) et [GUIDELINES.md](GUIDELINES.md) pour les conventions. Utiliser uniquement des données fictives ou anonymisées pour les tests et contributions.
 
-## 🗺️ Roadmap
-
-
-### Backlog
-
-- [ ] feat(updater): Opt-in setting to subscribe to beta (pre-release) updates
-- [ ] (under consideration) feat(draft): Draft Mode to review and edit a transcription before writing (medical use case)
-- [ ] (under consideration) fix(packaging): Sign the inner murmure.exe on Windows, not only the installers, so it runs under Smart App Control https://github.com/Kieirra/murmure/issues/428
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-Reporting issues is done [on GitHub](https://github.com/Kieirra/murmure/issues/new).
-
-### Privacy Policy
-
-See [PRIVACY_POLICY.md](./PRIVACY_POLICY.md).
-
-## Sponsors
-
-<table>
-  <tr>
-    <td><img src="https://signpath.org/assets/favicon-50x50.png" alt="SignPath" width="40"></td>
-    <td>Free code signing on Windows provided by <a href="https://about.signpath.io/">SignPath.io</a>, certificate by <a href="https://signpath.org/">SignPath Foundation</a></td>
-  </tr>
-</table>
-
-## Support Development
-
-If you like Murmure and want to support its development: [Support on Tipeee](https://fr.tipeee.com/murmure-al1x-ai/)
-
-## License
-
-Murmure is free and open source, released under the GNU AGPL v3 License.
-You can inspect, modify, and redistribute it freely as long as derivative works remain open source.
-
-## Acknowledgments
-
-- Thanks to NVIDIA for releasing the model [Parakeet TDT 0.6B v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)
-- Thanks to Moondream for the fine-tuned model [parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra), and to [@thiswillbeyourgithub](https://github.com/thiswillbeyourgithub) for its [int8 ONNX export](https://huggingface.co/Olicorne/parakeet-tdt-0.6b-v3-ultra-onnx), the model shipped with Murmure. These models are released under the [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) license
-- [Tauri](https://github.com/tauri-apps/tauri) for being an amazing tool
-- The open‑source community for their tools and libraries.
+- Murmure et cette adaptation sont distribués sous **GNU AGPL v3** ; voir [LICENSE](LICENSE). Merci aux auteurs et contributeurs du [projet officiel](https://github.com/Kieirra/murmure).
+- Le modèle repose sur [Parakeet de NVIDIA](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), avec le modèle affiné [parakeet-ultra de Moondream](https://huggingface.co/moondream/parakeet-ultra) et sa [conversion ONNX int8 par @thiswillbeyourgithub](https://huggingface.co/Olicorne/parakeet-tdt-0.6b-v3-ultra-onnx), sous [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), conformément aux attributions du projet d'origine.
+- L'application utilise [Tauri](https://tauri.app/). La [politique de confidentialité du projet d'origine](PRIVACY_POLICY.md) est conservée dans le dépôt.
+- Pour soutenir le développement de Murmure : [page de soutien officielle](https://fr.tipeee.com/murmure-al1x-ai/).
