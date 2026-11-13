@@ -200,6 +200,17 @@ mod tests {
 
         let settings = load_settings_from_path(&directory.settings_path(), || None);
 
+        let registry = crate::shortcuts::types::ShortcutRegistry::from_settings(&settings);
+        assert_eq!(registry.bindings.len(), 1);
+        assert_eq!(
+            registry.bindings[0].action,
+            crate::shortcuts::ShortcutAction::StartRecording
+        );
+        assert_eq!(
+            crate::shortcuts::keys_to_string(&registry.bindings[0].keys),
+            "f9"
+        );
+
         assert!(
             settings.mic_id.is_none() && settings.mic_label.is_none(),
             "Hospital reference settings must not select a microphone"

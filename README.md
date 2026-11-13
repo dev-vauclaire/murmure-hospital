@@ -24,7 +24,9 @@ La branche `main` conserve la référence officielle ; `hospital/main` regroupe 
 
 Les restrictions de ce premier jalon portent sur l'interface : les fonctionnalités masquées et le plugin natif de mise à jour restent présents dans le backend. Il ne s'agit pas encore d'une politique de verrouillage administrée.
 
-Dans **Système → Raccourci de dictée**, cliquer sur la combinaison actuelle, saisir les nouvelles touches puis valider avec **Entrée** ou annuler avec **Échap**. Le changement est appliqué immédiatement et conservé dans les préférences utilisateur. L'éditeur natif propose aussi d'effacer le raccourci et de rétablir la valeur native **Ctrl+Espace**. Sous Linux/Wayland, le raccourci reste géré dans les paramètres du système avec la commande `murmure --transcription` affichée dans l'application.
+Dans **Système → Raccourci de dictée**, cliquer sur la combinaison actuelle, saisir les nouvelles touches puis valider avec **Entrée** ou annuler avec **Échap**. Le changement est appliqué immédiatement et conservé dans les préférences utilisateur. L'éditeur natif propose aussi d'effacer le raccourci et de rétablir la valeur hospitalière **F9**. Le modèle initial assigne uniquement F9 à la dictée ; les douze autres raccourcis sont non assignés (`""` dans le JSON). Sous Linux/Wayland, le raccourci reste géré dans les paramètres du système avec la commande `murmure --transcription` affichée dans l'application.
+
+Sous Windows, Murmure surveille les touches sans les intercepter. Vérifier les éventuels conflits avec les raccourcis des logiciels utilisés et personnaliser le raccourci si nécessaire.
 
 ### Fichiers de référence à préparer avant le build
 
@@ -37,6 +39,32 @@ Dans **Système → Raccourci de dictée**, cliquer sur la combinaison actuelle,
 Ces fichiers utilisent les formats JSON natifs de Murmure. Chaque fichier utilisateur absent est initialisé indépendamment ; les fichiers existants ne sont pas écrasés par ce mécanisme.
 
 Sous Windows, les fichiers actifs sont `settings.json`, `dictionary.json` et `formatting_rules.json`, dans `%APPDATA%\com.al1x-ai.murmure\`. Réinstaller l'application ne réinitialise pas un profil existant. Pour tester les valeurs initiales, quitter complètement Murmure puis renommer ce dossier pour en conserver une sauvegarde avant de relancer l'application.
+
+### Mettre à jour uniquement les raccourcis d'un profil existant
+
+1. Quitter complètement Murmure depuis son menu de barre système, puis sauvegarder son fichier `settings.json`.
+2. Ouvrir ce fichier dans le dossier ci-dessus sous Windows, ou par défaut dans `~/.local/share/com.al1x-ai.murmure/` sous Linux.
+3. Modifier uniquement les propriétés ci-dessous, en conservant toutes les autres propriétés et les fichiers de dictionnaire et de règles. Conserver les clés avec une chaîne vide : une clé supprimée reprendrait une valeur native de Murmure.
+
+```json
+{
+    "record_shortcut": "f9",
+    "last_transcript_shortcut": "",
+    "command_shortcut": "",
+    "llm_mode_1_shortcut": "",
+    "llm_mode_2_shortcut": "",
+    "llm_mode_3_shortcut": "",
+    "llm_mode_4_shortcut": "",
+    "llm_transform_1_shortcut": "",
+    "llm_transform_2_shortcut": "",
+    "llm_transform_3_shortcut": "",
+    "llm_transform_4_shortcut": "",
+    "voice_mode_toggle_shortcut": "",
+    "cancel_shortcut": ""
+}
+```
+
+4. Enregistrer puis relancer Murmure. Le raccourci de dictée pourra ensuite être personnalisé dans **Système** ; les autres combinaisons sont libérées.
 
 ## Lancer en local
 

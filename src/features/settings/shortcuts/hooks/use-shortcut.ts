@@ -96,7 +96,7 @@ export const SHORTCUT_CONFIGS = {
         setCommand: 'set_command_shortcut',
     },
     record: {
-        defaultShortcut: 'ctrl+space',
+        defaultShortcut: 'f9',
         getCommand: 'get_record_shortcut',
         setCommand: 'set_record_shortcut',
     },
