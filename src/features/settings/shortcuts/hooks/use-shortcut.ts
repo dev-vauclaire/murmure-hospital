@@ -14,14 +14,40 @@ interface UseShortcutOptions {
     index?: number;
 }
 
+interface ShortcutUpdate {
+    getCommand: string;
+    index?: number;
+    shortcut: string;
+}
+
+const UPDATED_EVENT = 'murmure-shortcut-updated';
+
 export const useShortcut = ({ defaultShortcut, getCommand, setCommand, index }: UseShortcutOptions) => {
     const [shortcut, setShortcut] = useState(defaultShortcut);
     const { t } = useTranslation();
 
     useEffect(() => {
+        let active = true;
+        let updated = false;
+        const handleUpdated = (event: Event) => {
+            const { detail } = event as CustomEvent<ShortcutUpdate>;
+            if (detail.getCommand !== getCommand || detail.index !== index) return;
+            updated = true;
+            setShortcut(detail.shortcut);
+        };
+
+        window.addEventListener(UPDATED_EVENT, handleUpdated);
         invoke<string>(getCommand, { index })
-            .then((val) => val != null && setShortcut(val))
+            .then((val) => {
+                // A save may have completed while this initial read was in flight.
+                if (active && !updated && val != null) setShortcut(val);
+            })
             .catch((err) => console.error(`Failed to load shortcut (${getCommand}):`, err));
+
+        return () => {
+            active = false;
+            window.removeEventListener(UPDATED_EVENT, handleUpdated);
+        };
     }, [getCommand, index]);
 
     const saveShortcut = async (value: string) => {
@@ -32,6 +58,11 @@ export const useShortcut = ({ defaultShortcut, getCommand, setCommand, index }: 
                 binding: value,
             });
             setShortcut(normalized);
+            window.dispatchEvent(
+                new CustomEvent<ShortcutUpdate>(UPDATED_EVENT, {
+                    detail: { getCommand, index, shortcut: normalized },
+                })
+            );
         } catch {
             toast.error(t('Failed to save shortcut'));
         }
@@ -43,7 +74,6 @@ export const useShortcut = ({ defaultShortcut, getCommand, setCommand, index }: 
             toast.error(t('Cannot reset: default shortcut is already used by "{{name}}".', { name: conflict }));
             return;
         }
-        setShortcut(defaultShortcut);
         void saveShortcut(defaultShortcut);
     };
 

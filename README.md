@@ -14,8 +14,8 @@ La branche `main` conserve la référence officielle ; `hospital/main` regroupe 
 
 ## Changements effectués
 
-- **Interface simplifiée** : accès à l'accueil, au dictionnaire, aux règles personnalisées et à une sélection de paramètres système. Les extensions, règles générales, réglages des raccourcis et import/export global de configuration sont masqués.
-- **Réglages conservés** : microphone, sons et volume, mode de dictée « appuyer pour parler » ou bascule, insertion Standard ou Direct, conversion des nombres avec langue et seuil.
+- **Interface simplifiée** : accès à l'accueil, au dictionnaire, aux règles personnalisées et à une sélection de paramètres système. Les extensions, règles générales, réglages des autres raccourcis et import/export global de configuration sont masqués.
+- **Réglages conservés** : microphone, sons et volume, mode de dictée « appuyer pour parler » ou bascule, raccourci de dictée, insertion Standard ou Direct, conversion des nombres avec langue et seuil.
 - **Personnalisation visuelle** : ajout du logo Vauclaire à côté de celui de Murmure, avec une taille harmonisée.
 - **Liens et mises à jour** : retrait des accès « Signaler un bug », « Notes de version » et « Vérifier les mises à jour » dans la sidebar. Le lien « Soutenir Murmure » est conservé et le composant de vérification des mises à jour n'est plus monté.
 - **Configuration initiale commune** : paramètres, dictionnaire et commandes vocales embarqués lors du build, puis utilisés pour initialiser les fichiers utilisateur absents.
@@ -23,6 +23,8 @@ La branche `main` conserve la référence officielle ; `hospital/main` regroupe 
 - **Build Windows manuel sur GitHub Actions**, avec choix d'un installateur EXE ou MSI et tests ciblés sur la configuration.
 
 Les restrictions de ce premier jalon portent sur l'interface : les fonctionnalités masquées et le plugin natif de mise à jour restent présents dans le backend. Il ne s'agit pas encore d'une politique de verrouillage administrée.
+
+Dans **Système → Raccourci de dictée**, cliquer sur la combinaison actuelle, saisir les nouvelles touches puis valider avec **Entrée** ou annuler avec **Échap**. Le changement est appliqué immédiatement et conservé dans les préférences utilisateur. L'éditeur natif propose aussi d'effacer le raccourci et de rétablir la valeur native **Ctrl+Espace**. Sous Linux/Wayland, le raccourci reste géré dans les paramètres du système avec la commande `murmure --transcription` affichée dans l'application.
 
 ### Fichiers de référence à préparer avant le build
 
