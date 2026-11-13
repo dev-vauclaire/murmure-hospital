@@ -109,6 +109,8 @@ objc2 = "0.6"
 objc2-foundation = "0.3"
 
 [target.'cfg(target_os = "windows")'.dependencies]
+# Native HID access for the optional SpeechMike diagnostic, without a bundled C backend.
+hidapi = { version = "2.6.7", default-features = false, features = ["windows-native"] }
 # windows (not windows-sys): COM interface wrappers for the WASAPI endpoint
 # volume. Already resolved to 0.61.3 transitively through Tauri.
 windows = { version = "0.61", features = [

@@ -16,6 +16,7 @@ mod overlay;
 mod settings;
 mod shortcuts;
 mod smartmic;
+mod speechmike;
 mod stats;
 mod utils;
 mod wake_word;
@@ -128,7 +129,11 @@ pub fn run() {
                 },
                 Ok(Some(cmd)) => {
                     info!("CLI dispatch (hot): {:?}", cmd);
-                    crate::shortcuts::cli_dispatch::dispatch(app, &cmd);
+                    // Keep the event loop free for tray updates during audio init.
+                    let app = app.clone();
+                    std::thread::spawn(move || {
+                        crate::shortcuts::cli_dispatch::dispatch(&app, &cmd);
+                    });
                 }
                 Ok(None) => {
                     if !args.iter().any(|arg| arg == "--hidden") {
@@ -354,6 +359,8 @@ pub fn run() {
 
             audio::microphone::init_mic_cache_if_needed(app.handle(), s.mic_id.clone());
 
+            speechmike::init(app.handle());
+
             if s.api_enabled {
                 let app_handle = app.handle().clone();
                 let state = app_handle.state::<HttpApiState>().inner().clone();
@@ -427,6 +434,7 @@ pub fn run() {
             read_murmure_file,
             write_murmure_file,
             get_all_settings,
+            get_speechmike_status,
             set_show_in_dock,
             get_linux_session_type,
             get_linux_distro_info,
@@ -578,6 +586,11 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
+            if let tauri::RunEvent::ExitRequested { api, code, .. } = &event {
+                if speechmike::request_shutdown(app_handle, *code) {
+                    api.prevent_exit();
+                }
+            }
             // macOS: closing the window only hides it (see the
             // CloseRequested handler above). AppKit asks the delegate what
             // to do when the Dock icon is clicked with no visible window;
@@ -592,6 +605,7 @@ pub fn run() {
             // lingers under /proc/bus/input/devices until the kernel
             // reaps us.
             if matches!(event, tauri::RunEvent::Exit) {
+                speechmike::shutdown(app_handle);
                 #[cfg(target_os = "linux")]
                 crate::utils::wayland_inject::shutdown();
                 crate::utils::enigo_session::shutdown(app_handle);

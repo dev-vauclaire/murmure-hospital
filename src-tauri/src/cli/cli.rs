@@ -31,7 +31,36 @@ pub fn try_handle_early_args() -> bool {
         return true;
     }
 
+    match speechmike_diagnostic_requested(&args) {
+        Ok(true) => {
+            if let Err(message) = crate::speechmike::run_diagnostic() {
+                eprintln!("{}", message);
+                std::process::exit(1);
+            }
+            return true;
+        }
+        Err(message) => {
+            eprintln!("{}", message);
+            std::process::exit(2);
+        }
+        Ok(false) => {}
+    }
+
     false
+}
+
+fn speechmike_diagnostic_requested(args: &[String]) -> Result<bool, &'static str> {
+    if !args
+        .iter()
+        .skip(1)
+        .any(|arg| arg == "--speechmike-diagnostic")
+    {
+        return Ok(false);
+    }
+    if args.len() != 2 {
+        return Err("Utilisation : murmure --speechmike-diagnostic (sans autre argument).");
+    }
+    Ok(true)
 }
 
 fn print_help() {
@@ -55,6 +84,7 @@ OPTIONS:
     --llm-mode <N>               Toggle transcription with prompt N (1-4)
     --llm-transform <N>          Apply prompt N to the selected text (1-4)
     --hidden                     Start without showing the main window
+    --speechmike-diagnostic       Diagnose SpeechMike buttons for 60 seconds (Windows only)
     -h, --help                   Print help information
     -V, --version                Print version information
 
@@ -196,6 +226,18 @@ pub fn parse_raw_args(args: &[String]) -> Result<Option<CliCommand>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn speechmike_diagnostic_is_an_isolated_early_command() {
+        let args = ["murmure", "--speechmike-diagnostic"].map(str::to_string);
+        assert_eq!(speechmike_diagnostic_requested(&args), Ok(true));
+        for extra in ["--transcription", "--hidden", "--speechmike-diagnostic"] {
+            let args = ["murmure", "--speechmike-diagnostic", extra].map(str::to_string);
+            assert!(speechmike_diagnostic_requested(&args).is_err());
+        }
+        let args = ["murmure", "--transcription"].map(str::to_string);
+        assert_eq!(speechmike_diagnostic_requested(&args), Ok(false));
+    }
 
     #[test]
     fn test_parse_raw_args_basic_import() {

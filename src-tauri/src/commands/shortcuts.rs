@@ -1,5 +1,4 @@
 use crate::settings;
-use crate::shortcuts::types::{recording_state, RecordingSource};
 use crate::shortcuts::ShortcutState;
 use crate::shortcuts::{keys_to_string, parse_binding_keys, ShortcutAction, ShortcutRegistryState};
 use tauri::{command, AppHandle, Manager};
@@ -105,14 +104,17 @@ pub fn set_cancel_shortcut(app: AppHandle, binding: String) -> Result<String, St
 // ============================================================================
 
 #[command]
-pub fn cancel_recording(app: AppHandle) {
-    let shortcut_state = app.state::<ShortcutState>();
-    shortcut_state.set_toggled(false);
+pub async fn cancel_recording(app: AppHandle) {
+    // Audio initialization can hold the controller lock while updating the tray
+    // on the main thread. Never wait for that lock from the IPC main thread.
+    if tauri::async_runtime::spawn_blocking(move || {
+        crate::shortcuts::shortcuts::force_cancel_recording(&app);
+    })
+    .await
+    .is_err()
     {
-        let mut source = recording_state().source.lock();
-        *source = RecordingSource::None;
+        log::error!("Recording cancellation task failed");
     }
-    crate::audio::cancel_recording(&app);
 }
 
 // ============================================================================

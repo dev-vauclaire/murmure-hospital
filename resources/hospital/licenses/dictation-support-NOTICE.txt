@@ -1,0 +1,22 @@
+SpeechMike protocol reference
+
+The SpeechMike protocol constants, button mappings and decoding in
+src-tauri/src/speechmike/protocol.rs and types.rs are adapted from:
+
+GoogleChromeLabs/dictation_support
+Copyright 2022 Google LLC
+Licensed under the Apache License, Version 2.0.
+
+Reference commit: 077292a27ba77e40468fb464889fe3b5c121737d
+https://github.com/GoogleChromeLabs/dictation_support/tree/077292a27ba77e40468fb464889fe3b5c121737d
+
+Source files: src/dictation_device_manager.ts, src/speechmike_hid_device.ts
+and src/dictation_device_base.ts.
+
+Changes: Rust implementation for Windows SMP3700 button control and a separate
+diagnostic, with bounded reads, strict message validation and reconnection.
+The HID layer only queries identity and mode; it does not change device settings
+or LEDs. Button actions are routed to Murmure's existing dictation controller.
+The wire format is a reference to validate on the actual device.
+
+The full license is provided in dictation-support-APACHE-2.0.txt alongside this notice.

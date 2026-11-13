@@ -21,6 +21,7 @@ La branche `main` conserve la référence officielle ; `hospital/main` regroupe 
 - **Configuration initiale commune** : paramètres, dictionnaire et commandes vocales embarqués lors du build, puis utilisés pour initialiser les fichiers utilisateur absents.
 - **Confidentialité** : historique persistant, conservation des enregistrements audio, logs, API locale et Smart Speech Mic désactivés par défaut.
 - **Build Windows manuel sur GitHub Actions**, avec choix d'un installateur EXE ou MSI et tests ciblés sur la configuration.
+- **Boutons SpeechMike SMP3700 sous Windows** : détection automatique, REC pour la dictée, F1 pour annuler et F2 pour réinsérer la dernière transcription. Un diagnostic séparé reste disponible en ligne de commande.
 
 Les restrictions de ce premier jalon portent sur l'interface : les fonctionnalités masquées et le plugin natif de mise à jour restent présents dans le backend. Il ne s'agit pas encore d'une politique de verrouillage administrée.
 
@@ -65,6 +66,43 @@ Sous Windows, les fichiers actifs sont `settings.json`, `dictionary.json` et `fo
 ```
 
 4. Enregistrer puis relancer Murmure. Le raccourci de dictée pourra ensuite être personnalisé dans **Système** ; les autres combinaisons sont libérées.
+
+## Boutons SpeechMike SMP3700 sous Windows
+
+Le service détecte un SMP3700 au démarrage de Murmure ou lors de son branchement, y compris lorsque la fenêtre est masquée dans la barre système. Le micro doit être en **Event mode**. L'état de la connexion est affiché dans **Système**, près du choix du microphone. Ce premier support est limité à un seul SpeechMike compatible branché à la fois et reste à valider sur Windows et le matériel.
+
+| Bouton physique          | Action dans Murmure                                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| REC                      | Maintien pour enregistrer, puis relâchement pour transcrire ; ou appui pour démarrer/arrêter selon le mode choisi dans Système. |
+| F1                       | Annuler l'enregistrement en cours, sans insertion de sa transcription.                                                          |
+| F2                       | Réinsérer la dernière transcription disponible.                                                                                 |
+| Autres boutons de dictée | Aucune action attribuée dans Murmure pour ce jalon.                                                                             |
+
+Le **microphone choisi dans Murmure est conservé** : les boutons ne changent pas l'entrée audio. Pour enregistrer le son du SpeechMike, le sélectionner dans Système. Le raccourci clavier reste utilisable en parallèle ; chaque déclencheur pilote l'arrêt de l'enregistrement qu'il a commencé, et une nouvelle dictée attend la fin du traitement précédent.
+
+Le branchement ou la reconnexion ne démarre aucun enregistrement. Murmure attend un état initial connu avec les boutons relâchés avant d'afficher « prêt ». Si le périphérique ne transmet pas cet état spontanément, suivre l'indication dans Système : **appuyer puis relâcher REC une première fois pour initialiser les boutons**, sans dicter ; le cycle suivant commande la dictée. Un bouton déjà tenu lors de la connexion ne déclenche aucune action. Pendant la capture d'un nouveau raccourci clavier ou la suspension de la dictée, les boutons sont désactivés et un enregistrement SpeechMike en cours est annulé.
+
+Une déconnexion pendant l'enregistrement annule uniquement la session déclenchée par le SpeechMike, sans insérer de texte incomplet. Après une reconnexion, un nouvel appui est nécessaire. Si l'arrêt normal a déjà été demandé, la transcription peut se terminer. Les LED du micro ne sont pas pilotées ; l'overlay de Murmure indique l'état d'enregistrement.
+
+## Diagnostic SpeechMike SMP3700 sous Windows
+
+Ce premier jalon observe les boutons sans déclencher de dictée. La commande s'exécute avant Tauri et le moteur audio, sans lire les préférences utilisateur ni créer de logs sur disque. Elle ne modifie pas le mode du SpeechMike et ne commande pas ses LED.
+
+1. Quitter complètement Murmure et les autres applications susceptibles d'utiliser les boutons du micro, notamment SpeechControl pendant ce test.
+2. Brancher le SMP3700 et le placer en **Event mode** selon le [manuel Philips](https://www.dictation.philips.com/fileadmin/Products/smp3700/ifu/en/button-modes.html). Dans une VM, rediriger le périphérique USB complet : la redirection du son seule ne transmet pas les boutons HID.
+3. Après installation de cette version, lancer depuis PowerShell, en adaptant le chemin si nécessaire :
+
+```powershell
+Start-Process -FilePath "$env:LOCALAPPDATA\murmure\murmure.exe" -ArgumentList "--speechmike-diagnostic" -NoNewWindow -Wait
+```
+
+Le diagnostic dure environ **60 secondes**. Appuyer puis relâcher REC et les autres boutons, puis débrancher et rebrancher le micro. Le terminal affiche les interfaces candidates, l'identification du modèle et du mode, l'état initial des boutons puis leurs changements. Les numéros de série, chemins matériels et rapports bruts ne sont pas affichés. **Ctrl+C** permet d'interrompre le test. Le diagnostic observe les boutons sans les raccorder aux actions de dictée du service normal.
+
+Le filtre USB et le décodage proviennent du [SDK Google de référence](https://github.com/GoogleChromeLabs/dictation_support/tree/077292a27ba77e40468fb464889fe3b5c121737d) ; ils restent à valider sur le micro et son firmware. Le diagnostic accepte uniquement un SMP3700 identifié en Event mode et signale les configurations non reconnues. En présence de plusieurs interfaces candidates, ne laisser qu'un seul SpeechMike branché pour ce premier jalon.
+
+En développement sous Windows, la même commande peut être lancée depuis `src-tauri/` avec `cargo run -- --speechmike-diagnostic`. Sous Linux et macOS, elle renvoie un message indiquant que ce diagnostic est réservé à Windows.
+
+La dépendance `hidapi` est limitée à Windows et utilise son backend natif. Les [mentions du protocole adapté](resources/hospital/licenses/dictation-support-NOTICE.txt) et la [licence Apache-2.0](resources/hospital/licenses/dictation-support-APACHE-2.0.txt) sont embarquées avec les ressources de l'application.
 
 ## Lancer en local
 
@@ -122,7 +160,7 @@ Le workflow [`Build Windows hospitalier`](.github/workflows/build-hospital-windo
 
 ### Ce que fait le workflow
 
-Il vérifie les trois JSON de référence suivis dans Git, prépare les outils et dépendances, télécharge le modèle Parakeet, construit les ressources SmartMic et exécute les tests Rust ciblés des paramètres, du dictionnaire, du formatage et de l'initialisation.
+Il vérifie les trois JSON de référence suivis dans Git, prépare les outils et dépendances, télécharge le modèle Parakeet, construit les ressources SmartMic et exécute les tests Rust ciblés des paramètres, du dictionnaire, du formatage, de l'initialisation et du protocole SpeechMike. Les tests du protocole utilisent uniquement des messages synthétiques et ne nécessitent pas de micro connecté.
 
 Tauri compile ensuite le frontend et le backend pour **Windows x64**, embarque le modèle et les fichiers de référence, puis génère l'installateur choisi.
 

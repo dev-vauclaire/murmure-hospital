@@ -14,6 +14,7 @@ pub mod record_mode;
 pub mod settings;
 pub mod shortcuts;
 pub mod smartmic;
+pub mod speechmike;
 pub mod stats;
 pub mod wake_word;
 
@@ -32,5 +33,6 @@ pub use record_mode::*;
 pub use settings::*;
 pub use shortcuts::*;
 pub use smartmic::*;
+pub use speechmike::*;
 pub use stats::*;
 pub use wake_word::*;

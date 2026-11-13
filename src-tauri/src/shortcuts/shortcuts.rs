@@ -1,10 +1,10 @@
-use crate::audio::types::RecordingMode;
+use crate::audio::types::{AudioState, RecordingMode, RecordingTrigger};
 use crate::overlay::overlay::notify_overlay_error;
 use crate::shortcuts::modifiers::wait_for_modifiers_released;
 use crate::shortcuts::registry::ShortcutRegistryState;
 use crate::shortcuts::types::{
-    recording_state, ActivationMode, KeyEventType, RecordingSource, ShortcutAction,
-    ShortcutRegistry, ShortcutState,
+    recording_state, ActivationMode, KeyEventType, RecordingLifecycle, RecordingOwner,
+    RecordingSource, ShortcutAction, ShortcutRegistry, ShortcutState,
 };
 use log::{debug, info, warn};
 use parking_lot::Mutex;
@@ -116,6 +116,7 @@ pub fn handle_shortcut_event(
                 mode,
                 event_type,
                 &shortcut_state,
+                RecordingOwner::Other,
                 move || crate::audio::record_audio(&app_for_fn, RecordingMode::Standard),
             );
         }
@@ -132,6 +133,7 @@ pub fn handle_shortcut_event(
                 mode,
                 event_type,
                 &shortcut_state,
+                RecordingOwner::Other,
                 move || crate::audio::record_audio(&app_for_fn, RecordingMode::Command),
             );
         }
@@ -152,6 +154,7 @@ pub fn handle_shortcut_event(
                 mode,
                 event_type,
                 &shortcut_state,
+                RecordingOwner::Other,
                 move || crate::audio::record_audio(&app_for_fn, RecordingMode::Llm),
             );
         }
@@ -178,6 +181,29 @@ pub fn handle_shortcut_event(
             }
         }
     }
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) fn handle_speechmike_record_event(
+    app: &AppHandle,
+    mode: &ActivationMode,
+    event_type: KeyEventType,
+) {
+    let shortcut_state = app.state::<ShortcutState>();
+    if shortcut_state.is_suspended() || shortcut_state.is_capturing() {
+        cancel_speechmike_recording(app);
+        return;
+    }
+    let app_for_fn = app.clone();
+    handle_recording_event(
+        app,
+        RecordingSource::Standard,
+        mode,
+        event_type,
+        &shortcut_state,
+        RecordingOwner::SpeechMike,
+        move || crate::audio::record_audio(&app_for_fn, RecordingMode::Standard),
+    );
 }
 
 /// Waits for the physical modifiers: synthetic keys merge with the real
@@ -217,17 +243,18 @@ fn handle_recording_event<F>(
     mode: &ActivationMode,
     event_type: KeyEventType,
     shortcut_state: &ShortcutState,
+    owner: RecordingOwner,
     start_fn: F,
 ) where
     F: FnOnce() + Send + 'static,
 {
     match mode {
         ActivationMode::PushToTalk => {
-            pushtotalk_recording_action(app, target, event_type, shortcut_state, start_fn)
+            pushtotalk_recording_action(app, target, event_type, shortcut_state, owner, start_fn)
         }
         ActivationMode::ToggleToTalk => {
             if event_type == KeyEventType::Released {
-                toggle_recording_action(app, target, shortcut_state, start_fn);
+                toggle_recording_action_for_owner(app, target, shortcut_state, owner, start_fn);
             }
         }
     }
@@ -238,23 +265,41 @@ fn pushtotalk_recording_action<F>(
     target: RecordingSource,
     event_type: KeyEventType,
     _shortcut_state: &ShortcutState,
+    owner: RecordingOwner,
     start_fn: F,
 ) where
     F: FnOnce() + Send + 'static,
 {
-    let mut recording_source = recording_state().source.lock();
+    let state = recording_state();
+    if state.ending.load(Ordering::SeqCst) {
+        return;
+    }
+    let mut lifecycle = state.lifecycle.lock();
+    if lifecycle.is_ending() {
+        return;
+    }
+    reconcile_audio_owner(app, &mut lifecycle);
+    let mut recording_source = state.source.lock();
 
     match event_type {
         KeyEventType::Pressed => {
             if *recording_source == RecordingSource::None {
-                start_recording(app, &mut recording_source, target, start_fn);
+                start_recording(
+                    app,
+                    &mut recording_source,
+                    &mut lifecycle,
+                    target,
+                    owner,
+                    start_fn,
+                );
             }
         }
         KeyEventType::Released => {
-            if *recording_source == target {
-                pre_stop(app, &mut recording_source);
-                drop(recording_source);
-                finish_stop(app);
+            if *recording_source == target && lifecycle.can_control(owner) {
+                if let Some(revision) = pre_stop(&mut recording_source, &mut lifecycle) {
+                    drop(recording_source);
+                    finish_stop(app, revision);
+                }
             }
         }
     }
@@ -268,78 +313,245 @@ pub(crate) fn toggle_recording_action<F>(
 ) where
     F: FnOnce() + Send + 'static,
 {
-    let mut recording_source = recording_state().source.lock();
+    toggle_recording_action_for_owner(app, target, shortcut_state, RecordingOwner::Other, start_fn);
+}
+
+fn toggle_recording_action_for_owner<F>(
+    app: &AppHandle,
+    target: RecordingSource,
+    shortcut_state: &ShortcutState,
+    owner: RecordingOwner,
+    start_fn: F,
+) where
+    F: FnOnce() + Send + 'static,
+{
+    let state = recording_state();
+    if state.ending.load(Ordering::SeqCst) {
+        return;
+    }
+    let mut lifecycle = state.lifecycle.lock();
+    if lifecycle.is_ending() {
+        return;
+    }
+    reconcile_audio_owner(app, &mut lifecycle);
+    let mut recording_source = state.source.lock();
 
     if *recording_source == target {
+        if !lifecycle.can_control(owner) {
+            return;
+        }
         if within_cooldown(&recording_state().last_toggle_start) {
             return;
         }
-        shortcut_state.set_toggled(false);
-        pre_stop(app, &mut recording_source);
-        *recording_state().last_toggle_stop.lock() = Instant::now();
-        drop(recording_source);
-        finish_stop(app);
+        if let Some(revision) = pre_stop(&mut recording_source, &mut lifecycle) {
+            shortcut_state.set_toggled(false);
+            *recording_state().last_toggle_stop.lock() = Instant::now();
+            drop(recording_source);
+            finish_stop(app, revision);
+        }
     } else if *recording_source == RecordingSource::None {
         if within_cooldown(&recording_state().last_toggle_stop) {
             info!("ToggleToTalk start ignored (cooldown after stop)");
             return;
         }
-        shortcut_state.set_toggled(true);
-        start_recording(app, &mut recording_source, target, start_fn);
+        if start_recording(
+            app,
+            &mut recording_source,
+            &mut lifecycle,
+            target,
+            owner,
+            start_fn,
+        ) {
+            shortcut_state.set_toggled(true);
+        }
     }
 }
 
 fn start_recording<F>(
     app: &AppHandle,
     recording_source: &mut RecordingSource,
+    lifecycle: &mut RecordingLifecycle,
     target: RecordingSource,
+    owner: RecordingOwner,
     start_fn: F,
-) where
+) -> bool
+where
     F: FnOnce() + Send + 'static,
 {
+    let audio = app.state::<AudioState>();
+    let Some(ticket) = lifecycle.reserve_start(
+        owner,
+        audio.current_session(),
+        *recording_source == RecordingSource::None,
+        audio.is_session_active(),
+    ) else {
+        return false;
+    };
     crate::onboarding::onboarding::capture_focus_at_record_start(app);
     *recording_source = target;
     *recording_state().last_toggle_start.lock() = Instant::now();
     // Run off-thread so the shortcut processor stays reactive during the
     // ~100ms CPAL init and doesn't queue up auto-repeat events.
+    let app = app.clone();
     std::thread::spawn(move || {
+        let state = recording_state();
+        // This guard also covers cancellation: a queued start cannot outlive a
+        // disconnect, and cancellation waits for microphone initialization to finish.
+        let mut lifecycle = state.lifecycle.lock();
+        if !lifecycle.is_current(ticket) {
+            return;
+        }
+        let audio = app.state::<AudioState>();
+        if *state.source.lock() != target
+            || audio.current_session() != ticket.audio_before_start
+            || audio.is_session_active()
+        {
+            lifecycle.invalidate();
+            return;
+        }
+        if owner == RecordingOwner::SpeechMike {
+            audio.set_recording_trigger(RecordingTrigger::Keyboard);
+        }
         start_fn();
-        info!("Started {:?} recording", target);
+        let generation = audio.current_session();
+        if generation != ticket.audio_before_start.wrapping_add(1) {
+            // An external audio entry point superseded this request.
+            lifecycle.invalidate();
+            return;
+        }
+        if audio.is_session_active() {
+            lifecycle.started(ticket, generation);
+            reconcile_audio_owner(&app, &mut lifecycle);
+            info!("Started {:?} recording", target);
+        } else {
+            lifecycle.invalidate();
+            *state.source.lock() = RecordingSource::None;
+            app.state::<ShortcutState>().set_toggled(false);
+            crate::audio::cancel_recording(&app);
+        }
     });
+    true
 }
 
-fn pre_stop(_app: &AppHandle, recording_source: &mut RecordingSource) {
+fn reconcile_audio_owner(app: &AppHandle, lifecycle: &mut RecordingLifecycle) {
+    let audio = app.state::<AudioState>();
+    lifecycle.reconcile_audio(
+        audio.current_session(),
+        audio.get_recording_trigger() == RecordingTrigger::Keyboard,
+    );
+}
+
+fn pre_stop(
+    recording_source: &mut RecordingSource,
+    lifecycle: &mut RecordingLifecycle,
+) -> Option<u64> {
+    let revision = lifecycle.reserve_stop()?;
     *recording_source = RecordingSource::None;
+    recording_state().ending.store(true, Ordering::SeqCst);
+    Some(revision)
 }
 
-fn finish_stop(app: &AppHandle) {
+fn finish_stop(app: &AppHandle, revision: u64) {
     // Off-thread because stop_recording blocks on the LLM request and paste
     // (~1s), during which the processor must keep handling keyboard events.
     let app = app.clone();
     std::thread::spawn(move || {
-        let _ = crate::audio::stop_recording(&app);
-        info!("Stopped recording");
+        if run_reserved_stop(&app, revision) {
+            info!("Stopped recording");
+        }
     });
 }
 
-pub fn force_stop_recording(app: &AppHandle) {
-    let shortcut_state = app.state::<ShortcutState>();
-    shortcut_state.set_toggled(false);
+fn run_reserved_stop(app: &AppHandle, revision: u64) -> bool {
+    let state = recording_state();
     {
-        let mut recording_source = recording_state().source.lock();
-        *recording_source = RecordingSource::None;
+        let mut lifecycle = state.lifecycle.lock();
+        if !lifecycle.begin_stop(revision) {
+            return false;
+        }
     }
+    // Finalization can take seconds. Keep admission closed, but allow cancel to
+    // invalidate the audio generation and cancel pending work without waiting.
     let _ = crate::audio::stop_recording(app);
+    let mut lifecycle = state.lifecycle.lock();
+    lifecycle.complete_stop(revision);
+    state.ending.store(lifecycle.is_ending(), Ordering::SeqCst);
+    true
+}
+
+pub fn force_stop_recording(app: &AppHandle) {
+    let state = recording_state();
+    let revision = {
+        let mut lifecycle = state.lifecycle.lock();
+        let mut recording_source = state.source.lock();
+        let Some(revision) = pre_stop(&mut recording_source, &mut lifecycle) else {
+            return;
+        };
+        app.state::<ShortcutState>().set_toggled(false);
+        revision
+    };
+    run_reserved_stop(app, revision);
 }
 
 pub fn force_cancel_recording(app: &AppHandle) {
+    cancel_recording_for_owner(app, false);
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) fn cancel_speechmike_recording(app: &AppHandle) {
+    cancel_recording_for_owner(app, true);
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) fn speechmike_is_recording(app: &AppHandle) -> bool {
+    let state = recording_state();
+    let mut lifecycle = state.lifecycle.lock();
+    reconcile_audio_owner(app, &mut lifecycle);
+    *state.source.lock() == RecordingSource::Standard
+        && lifecycle.can_control(RecordingOwner::SpeechMike)
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) fn speechmike_input_available(app: &AppHandle) -> bool {
+    let shortcut_state = app.state::<ShortcutState>();
+    if shortcut_state.is_suspended()
+        || shortcut_state.is_capturing()
+        || recording_state().ending.load(Ordering::SeqCst)
+    {
+        return false;
+    }
+    if speechmike_is_recording(app) {
+        return true;
+    }
+    let state = recording_state();
+    let lifecycle = state.lifecycle.lock();
+    !lifecycle.is_ending()
+        && *state.source.lock() == RecordingSource::None
+        && !app.state::<AudioState>().is_session_active()
+}
+
+fn cancel_recording_for_owner(app: &AppHandle, speechmike_only: bool) {
+    let state = recording_state();
+    let mut lifecycle = state.lifecycle.lock();
+    reconcile_audio_owner(app, &mut lifecycle);
+    if speechmike_only
+        && (*state.source.lock() != RecordingSource::Standard
+            || !lifecycle.can_control(RecordingOwner::SpeechMike))
+    {
+        return;
+    }
+    let had_audio = app.state::<AudioState>().is_session_active();
+    lifecycle.invalidate();
+    state.ending.store(lifecycle.is_ending(), Ordering::SeqCst);
     let shortcut_state = app.state::<ShortcutState>();
     shortcut_state.set_toggled(false);
     {
         let mut recording_source = recording_state().source.lock();
         *recording_source = RecordingSource::None;
     }
-    crate::audio::cancel_recording(app);
+    if !speechmike_only || had_audio {
+        crate::audio::cancel_recording(app);
+    }
 }
 
 #[cfg(target_os = "linux")]

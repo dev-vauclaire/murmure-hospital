@@ -4,6 +4,7 @@ import { Page } from '@/components/page';
 import { PasteMethodSettings } from './paste-method-settings/paste-method-settings';
 import { SoundSettings } from './sound-settings/sound-settings';
 import { MicSettings } from './mic-settings/mic-settings';
+import { SpeechMikeStatus } from './speechmike-status/speechmike-status';
 import { RecordModeSettings } from './record-mode-settings/record-mode-settings';
 import { RecordShortcutSettings } from './record-shortcut-settings/record-shortcut-settings';
 import { useTranslation } from '@/i18n';
@@ -22,6 +23,7 @@ export const System = () => {
                     <div className="w-full space-y-6">
                         <SettingsUI.Section title={t('General')} icon={Settings}>
                             <MicSettings />
+                            <SpeechMikeStatus />
                             <SettingsUI.Separator />
                             <RecordModeSettings />
                             <SettingsUI.Separator />
