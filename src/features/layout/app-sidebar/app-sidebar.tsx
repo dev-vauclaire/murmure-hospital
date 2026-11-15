@@ -21,6 +21,7 @@ import { isPathInItems } from './app-sidebar.helpers';
 import { Onboarding } from '@/features/onboarding/onboarding';
 import { useIsWayland } from '@/components/hooks/use-linux-session-type';
 import { useShortcut, SHORTCUT_CONFIGS } from '@/features/settings/shortcuts/hooks/use-shortcut';
+import { useMicrophoneControls } from '@/features/settings/system/microphone-controls/hooks/use-microphone-controls';
 
 const getPersonalizeSubItems = (t: (key: string) => string) => [
     {
@@ -47,7 +48,16 @@ export const AppSidebar = () => {
     const isPersonalizeActive = isPathInItems(pathname, personalizeSubItems);
     const isAboutActive = pathname === '/about';
     const { shortcut: recordShortcut } = useShortcut(SHORTCUT_CONFIGS.record);
+    const { controls, loadFailed } = useMicrophoneControls();
     const isWayland = useIsWayland();
+    const onboardingShortcut =
+        controls === null || loadFailed
+            ? undefined
+            : controls.profile === 'speechmike'
+              ? 'REC'
+              : recordShortcut.length > 0
+                ? recordShortcut
+                : undefined;
 
     return (
         <Sidebar
@@ -118,7 +128,7 @@ export const AppSidebar = () => {
                 </SidebarGroup>
                 {!isWayland && (
                     <div className="mt-auto px-2 pb-2 empty:hidden">
-                        <Onboarding recordShortcut={recordShortcut} />
+                        <Onboarding recordShortcut={onboardingShortcut} />
                     </div>
                 )}
             </SidebarContent>

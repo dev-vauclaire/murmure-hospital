@@ -9,6 +9,7 @@ import {
 
 interface UseShortcutOptions {
     defaultShortcut: string;
+    initialShortcut?: string;
     getCommand: string;
     setCommand: string;
     index?: number;
@@ -22,8 +23,14 @@ interface ShortcutUpdate {
 
 const UPDATED_EVENT = 'murmure-shortcut-updated';
 
-export const useShortcut = ({ defaultShortcut, getCommand, setCommand, index }: UseShortcutOptions) => {
-    const [shortcut, setShortcut] = useState(defaultShortcut);
+export const useShortcut = ({
+    defaultShortcut,
+    initialShortcut,
+    getCommand,
+    setCommand,
+    index,
+}: UseShortcutOptions) => {
+    const [shortcut, setShortcut] = useState(initialShortcut ?? defaultShortcut);
     const { t } = useTranslation();
 
     useEffect(() => {

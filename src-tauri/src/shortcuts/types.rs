@@ -127,6 +127,11 @@ impl RecordingLifecycle {
         }
     }
 
+    #[cfg(any(target_os = "windows", test))]
+    pub(crate) fn has_pending_start(&self) -> bool {
+        self.request.is_some() && self.audio_generation.is_none() && self.ending.is_none()
+    }
+
     /// Other audio entry points do not use this controller (for example wake word).
     /// Forget a hardware claim when one of those entry points replaces its session.
     pub(crate) fn reconcile_audio(&mut self, generation: u64, keyboard_trigger: bool) {
@@ -233,6 +238,29 @@ pub fn recording_state() -> &'static RecordingState {
 #[cfg(test)]
 mod tests {
     use super::{RecordingLifecycle, RecordingOwner};
+
+    #[test]
+    fn a_microphone_choice_cannot_replace_the_input_of_a_reserved_start() {
+        let mut lifecycle = RecordingLifecycle::default();
+        assert!(!lifecycle.has_pending_start());
+        let ticket = lifecycle
+            .reserve_start(RecordingOwner::Other, 10, true, false)
+            .expect("An idle controller accepts a start");
+        assert!(lifecycle.has_pending_start());
+        lifecycle.started(ticket, 11);
+        assert!(!lifecycle.has_pending_start());
+    }
+
+    #[test]
+    fn cancellation_or_a_reserved_stop_clears_the_pending_start_barrier() {
+        let mut lifecycle = RecordingLifecycle::default();
+        lifecycle.reserve_start(RecordingOwner::SpeechMike, 10, true, false);
+        lifecycle.invalidate();
+        assert!(!lifecycle.has_pending_start());
+        lifecycle.reserve_start(RecordingOwner::Other, 10, true, false);
+        lifecycle.reserve_stop();
+        assert!(!lifecycle.has_pending_start());
+    }
 
     #[test]
     fn native_start_admission_rejects_active_audio_and_non_idle_sources() {

@@ -8,7 +8,7 @@ import { useMicState } from './hooks/use-mic-state';
 
 export const MicSettings = () => {
     const { t } = useTranslation();
-    const { currentMic, setMic, micList, isLoading, refreshMicList } = useMicState();
+    const { currentMic, setMic, micList, isLoading, isSaving, refreshMicList } = useMicState();
 
     return (
         <SettingsUI.Item>
@@ -21,7 +21,7 @@ export const MicSettings = () => {
             </SettingsUI.Description>
             <div className={`flex items-center gap-2 ${isLoading ? 'opacity-50' : ''}`}>
                 <Select value={currentMic} onValueChange={setMic} disabled={isLoading}>
-                    <SelectTrigger className="w-[240px]" data-testid="mic-select">
+                    <SelectTrigger className="w-[240px]" data-testid="mic-select" aria-busy={isSaving}>
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="max-h-96">
@@ -41,6 +41,9 @@ export const MicSettings = () => {
                 >
                     <RefreshCw className={isLoading ? 'animate-spin' : ''} />
                 </Button>
+                <span role="status" className="sr-only">
+                    {isSaving ? t('Saving microphone selection...') : ''}
+                </span>
             </div>
         </SettingsUI.Item>
     );

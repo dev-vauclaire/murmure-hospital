@@ -17,7 +17,13 @@ export const useMicState = () => {
     const [micList, setMicList] = useState([{ id: AUTOMATIC_MIC_ID, label: automaticLabel }]);
     const [currentMic, setCurrentMic] = useState(AUTOMATIC_MIC_ID);
     const [isLoading, setIsLoading] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
     const lastKnownLabel = useRef<string | null>(null);
+    const mounted = useRef(false);
+    const saving = useRef(false);
+    const selectionRevision = useRef(0);
+    const refreshRevision = useRef(0);
 
     const buildMicList = (devices: MicInfo[], selectedMicId: string) => {
         const currentDevice = devices.find((d) => d.id === selectedMicId);
@@ -48,12 +54,16 @@ export const useMicState = () => {
     };
 
     useEffect(() => {
+        let active = true;
+        mounted.current = true;
+        const revision = selectionRevision.current;
         const loadCurrent = async () => {
             try {
                 const [id, label] = await Promise.all([
                     invoke<string | null>('get_current_mic_id'),
                     invoke<string | null>('get_current_mic_label'),
                 ]);
+                if (!active || revision !== selectionRevision.current) return;
                 const micId = id || AUTOMATIC_MIC_ID;
                 setCurrentMic(micId);
 
@@ -65,21 +75,31 @@ export const useMicState = () => {
                     addMicIfMissing(micId, label ?? micId);
                 }
             } catch (error) {
-                console.error('Failed to load current mic', error);
+                if (active) console.error('Failed to load current mic', error);
+            } finally {
+                if (active) setIsInitializing(false);
             }
         };
         void loadCurrent();
+        return () => {
+            active = false;
+            mounted.current = false;
+        };
     }, []);
 
     const refreshMicList = async () => {
+        const request = ++refreshRevision.current;
+        const revision = selectionRevision.current;
         setIsLoading(true);
         try {
             const devices = await invoke<MicInfo[]>('get_mic_list');
-            setMicList(buildMicList(devices, currentMic));
+            if (mounted.current && request === refreshRevision.current && revision === selectionRevision.current) {
+                setMicList(buildMicList(devices, currentMic));
+            }
         } catch (error) {
             console.error('Failed to load mic list', error);
         } finally {
-            setIsLoading(false);
+            if (mounted.current && request === refreshRevision.current) setIsLoading(false);
         }
     };
 
@@ -89,22 +109,35 @@ export const useMicState = () => {
     }, [automaticLabel, currentMic]);
 
     const setMic = async (id: string) => {
+        if (saving.current || isInitializing) return;
+        saving.current = true;
+        const revision = ++selectionRevision.current;
+        setIsSaving(true);
         const mic = micList.find((m) => m.id === id);
         const label = mic && id !== AUTOMATIC_MIC_ID ? mic.label : null;
-        if (label) {
-            lastKnownLabel.current = label;
-        }
-        setCurrentMic(id);
         try {
             await invoke('set_current_mic_id', {
                 micId: id === AUTOMATIC_MIC_ID ? null : id,
                 micLabel: label,
             });
+            if (!mounted.current || revision !== selectionRevision.current) return;
+            if (label) lastKnownLabel.current = label;
+            setCurrentMic(id);
         } catch (error) {
             console.error('Failed to save microphone selection', error);
             toast.error(t('Failed to save microphone selection'));
+        } finally {
+            saving.current = false;
+            if (mounted.current) setIsSaving(false);
         }
     };
 
-    return { micList, currentMic, setMic, isLoading, refreshMicList };
+    return {
+        micList,
+        currentMic,
+        setMic,
+        isLoading: isLoading || isInitializing || isSaving,
+        isSaving,
+        refreshMicList,
+    };
 };

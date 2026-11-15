@@ -14,8 +14,8 @@ La branche `main` conserve la référence officielle ; `hospital/main` regroupe 
 
 ## Changements effectués
 
-- **Interface simplifiée** : accès à l'accueil, au dictionnaire, aux règles personnalisées et à une sélection de paramètres système. Les extensions, règles générales, réglages des autres raccourcis et import/export global de configuration sont masqués.
-- **Réglages conservés** : microphone, sons et volume, mode de dictée « appuyer pour parler » ou bascule, raccourci de dictée, insertion Standard ou Direct, conversion des nombres avec langue et seuil.
+- **Interface simplifiée** : accès à l'accueil, au dictionnaire, aux règles personnalisées et à une sélection de paramètres système. Les extensions, règles générales, réglages des raccourcis d'extensions et import/export global de configuration sont masqués.
+- **Réglages conservés** : microphone, sons et volume, mode de dictée « appuyer pour parler » ou bascule, raccourcis de dictée, de collage de la dernière transcription et d'annulation, insertion Standard ou Direct, conversion des nombres avec langue et seuil.
 - **Personnalisation visuelle** : ajout du logo Vauclaire à côté de celui de Murmure, avec une taille harmonisée.
 - **Liens et mises à jour** : retrait des accès « Signaler un bug », « Notes de version » et « Vérifier les mises à jour » dans la sidebar. Le lien « Soutenir Murmure » est conservé et le composant de vérification des mises à jour n'est plus monté.
 - **Configuration initiale commune** : paramètres, dictionnaire et commandes vocales embarqués lors du build, puis utilisés pour initialiser les fichiers utilisateur absents.
@@ -25,7 +25,7 @@ La branche `main` conserve la référence officielle ; `hospital/main` regroupe 
 
 Les restrictions de ce premier jalon portent sur l'interface : les fonctionnalités masquées et le plugin natif de mise à jour restent présents dans le backend. Il ne s'agit pas encore d'une politique de verrouillage administrée.
 
-Dans **Système → Raccourci de dictée**, cliquer sur la combinaison actuelle, saisir les nouvelles touches puis valider avec **Entrée** ou annuler avec **Échap**. Le changement est appliqué immédiatement et conservé dans les préférences utilisateur. L'éditeur natif propose aussi d'effacer le raccourci et de rétablir la valeur hospitalière **F9**. Le modèle initial assigne uniquement F9 à la dictée ; les douze autres raccourcis sont non assignés (`""` dans le JSON). Sous Linux/Wayland, le raccourci reste géré dans les paramètres du système avec la commande `murmure --transcription` affichée dans l'application.
+Dans **Système → Microphone et commandes**, les trois raccourcis clavier sont personnalisables tant que le profil clavier est actif. Cliquer sur une combinaison, saisir les nouvelles touches puis valider avec **Entrée** ou annuler avec **Échap**. Le changement est appliqué immédiatement et conservé dans les préférences utilisateur. L'éditeur natif propose aussi d'effacer un raccourci ou de rétablir sa valeur par défaut. Le modèle initial assigne uniquement **F9** à la dictée ; les douze autres raccourcis, dont collage et annulation, restent non assignés (`""` dans le JSON) jusqu'à une configuration explicite. Sous Linux/Wayland, les raccourcis restent gérés dans les paramètres du système avec les commandes natives affichées dans l'application.
 
 Sous Windows, Murmure surveille les touches sans les intercepter. Vérifier les éventuels conflits avec les raccourcis des logiciels utilisés et personnaliser le raccourci si nécessaire.
 
@@ -69,7 +69,7 @@ Sous Windows, les fichiers actifs sont `settings.json`, `dictionary.json` et `fo
 
 ## Boutons SpeechMike SMP3700 sous Windows
 
-Le service détecte un SMP3700 au démarrage de Murmure ou lors de son branchement, y compris lorsque la fenêtre est masquée dans la barre système. Le micro doit être en **Event mode**. L'état de la connexion est affiché dans **Système**, près du choix du microphone. Ce premier support est limité à un seul SpeechMike compatible branché à la fois et reste à valider sur Windows et le matériel.
+Le service détecte un SMP3700 au démarrage de Murmure ou lors de son branchement, y compris lorsque la fenêtre est masquée dans la barre système. Le micro doit être en **Event mode**. Dans **Système → Microphone et commandes**, les raccourcis clavier sont remplacés par le guide des boutons lorsque le SpeechMike est branché et constitue l'entrée audio sélectionnée. Le choix du microphone reste visible. Ce premier support est limité à un seul SpeechMike compatible branché à la fois ; la correspondance matérielle et les transitions restent à valider sur Windows et le matériel.
 
 | Bouton physique          | Action dans Murmure                                                                                                             |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -78,7 +78,11 @@ Le service détecte un SMP3700 au démarrage de Murmure ou lors de son brancheme
 | F2                       | Réinsérer la dernière transcription disponible.                                                                                 |
 | Autres boutons de dictée | Aucune action attribuée dans Murmure pour ce jalon.                                                                             |
 
-Le **microphone choisi dans Murmure est conservé** : les boutons ne changent pas l'entrée audio. Pour enregistrer le son du SpeechMike, le sélectionner dans Système. Le raccourci clavier reste utilisable en parallèle ; chaque déclencheur pilote l'arrêt de l'enregistrement qu'il a commencé, et une nouvelle dictée attend la fin du traitement précédent.
+Le **microphone choisi dans Murmure est conservé** : les boutons ne changent pas l'entrée audio. L'identification rapproche l'entrée audio et l'interface HID par leur conteneur matériel Windows, sans utiliser leur nom et sans enregistrer d'identifiant propre à un poste dans le code. En mode Automatique, l'entrée audio par défaut effective est résolue. Une identité absente ou ambiguë ne suffit pas à activer le profil SpeechMike.
+
+Les profils de commandes sont exclusifs : **SpeechMike sélectionné**, les trois raccourcis clavier sont ignorés côté Rust ; **autre microphone sélectionné**, les boutons du SpeechMike sont mis en veille et les raccourcis clavier sont réactivés. Les combinaisons enregistrées dans les préférences ne sont pas effacées. Une bascule demandée pendant une dictée ou son traitement attend la fin de cette session ; les touches doivent être relâchées avant un nouveau déclenchement.
+
+Le guide illustré est embarqué depuis `src/assets/speechmike/smp3700-guide.png`. Ce visuel peut être remplacé avant un build (également `.jpg`, `.jpeg`, `.webp` ou `.svg`). Sans image, le guide affiche les trois actions sous forme de légende. La consigne REC suit le mode d'enregistrement choisi.
 
 Le branchement ou la reconnexion ne démarre aucun enregistrement. Murmure attend un état initial connu avec les boutons relâchés avant d'afficher « prêt ». Si le périphérique ne transmet pas cet état spontanément, suivre l'indication dans Système : **appuyer puis relâcher REC une première fois pour initialiser les boutons**, sans dicter ; le cycle suivant commande la dictée. Un bouton déjà tenu lors de la connexion ne déclenche aucune action. Pendant la capture d'un nouveau raccourci clavier ou la suspension de la dictée, les boutons sont désactivés et un enregistrement SpeechMike en cours est annulé.
 
@@ -180,3 +184,4 @@ Les retours, corrections et améliorations sont les bienvenus sur [ce dépôt](h
 - Le modèle repose sur [Parakeet de NVIDIA](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), avec le modèle affiné [parakeet-ultra de Moondream](https://huggingface.co/moondream/parakeet-ultra) et sa [conversion ONNX int8 par @thiswillbeyourgithub](https://huggingface.co/Olicorne/parakeet-tdt-0.6b-v3-ultra-onnx), sous [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), conformément aux attributions du projet d'origine.
 - L'application utilise [Tauri](https://tauri.app/). La [politique de confidentialité du projet d'origine](PRIVACY_POLICY.md) est conservée dans le dépôt.
 - Pour soutenir le développement de Murmure : [page de soutien officielle](https://fr.tipeee.com/murmure-al1x-ai/).
+- Guide illustré du SMP3700 : adaptation d'une [photo produit publiée par Philips Dictation](https://www.dictation.philips.com/fileadmin/Products/smp3700/img/smp3700-smp3800_philips-speechmike-premium-touch__f2_rgb.tif). Cette mention de provenance ne vaut pas autorisation de redistribution ; les conditions de réutilisation du visuel constructeur restent à valider.

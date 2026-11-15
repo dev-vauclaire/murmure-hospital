@@ -435,6 +435,7 @@ pub fn run() {
             write_murmure_file,
             get_all_settings,
             get_speechmike_status,
+            get_microphone_controls,
             set_show_in_dock,
             get_linux_session_type,
             get_linux_distro_info,

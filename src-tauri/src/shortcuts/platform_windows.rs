@@ -38,6 +38,8 @@ pub fn init(app: AppHandle) {
         let mut last_press_times: Vec<Instant> = Vec::new();
         let mut previous_pressed: HashSet<i32> = HashSet::new();
         let mut was_capturing = false;
+        let mut keyboard_admission = crate::speechmike::KeyboardAdmission::default();
+        let mut profile_revision = None;
 
         loop {
             let shortcut_state = app.state::<ShortcutState>();
@@ -62,8 +64,27 @@ pub fn init(app: AppHandle) {
                 continue;
             }
 
+            // Read the profile before acquiring the registry: an admitted native
+            // action may wait for a tray/UI task while a UI setter updates bindings.
+            let (keyboard_enabled, revision) = crate::speechmike::keyboard_state(&app);
             let registry_state = app.state::<ShortcutRegistryState>();
             let registry = registry_state.0.read();
+            if profile_revision != Some(revision) {
+                // An old release must not stop or toggle a session after the
+                // microphone switches input profiles. Leave hidden bindings alone.
+                active_bindings.retain(|index| {
+                    registry.bindings.get(*index).is_some_and(|binding| {
+                        !crate::speechmike::is_keyboard_control_action(&binding.action)
+                    })
+                });
+                profile_revision = Some(revision);
+            }
+            let controlled_keys_held = registry.bindings.iter().any(|binding| {
+                crate::speechmike::is_keyboard_control_action(&binding.action)
+                    && any_key_pressed(&binding.keys)
+            });
+            let keyboard_armed =
+                keyboard_admission.update(revision, keyboard_enabled, controlled_keys_held);
 
             while last_press_times.len() < registry.bindings.len() {
                 last_press_times.push(Instant::now() - Duration::from_secs(1));
@@ -71,6 +92,11 @@ pub fn init(app: AppHandle) {
 
             for (i, binding) in registry.bindings.iter().enumerate() {
                 if binding.keys.is_empty() {
+                    continue;
+                }
+                if crate::speechmike::is_keyboard_control_action(&binding.action) && !keyboard_armed
+                {
+                    active_bindings.remove(&i);
                     continue;
                 }
 
@@ -96,7 +122,7 @@ pub fn init(app: AppHandle) {
                     let mode = binding.activation_mode.clone();
                     drop(registry);
 
-                    crate::shortcuts::handle_shortcut_event(
+                    crate::speechmike::handle_keyboard_event(
                         &app,
                         &action,
                         &mode,
@@ -111,7 +137,7 @@ pub fn init(app: AppHandle) {
                     let mode = binding.activation_mode.clone();
                     drop(registry);
 
-                    crate::shortcuts::handle_shortcut_event(
+                    crate::speechmike::handle_keyboard_event(
                         &app,
                         &action,
                         &mode,

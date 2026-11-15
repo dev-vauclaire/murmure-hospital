@@ -9,12 +9,16 @@ impl Controls {
         self.held_record_mode = None;
     }
 
+    /// Keep the last physical snapshot, but never replay a press from another
+    /// input profile. Buttons held during a switch have to be released first.
+    pub(super) fn rearm(&mut self) {
+        self.held_record_mode = None;
+        self.baseline_ready = self.baseline_buttons.as_ref().is_some_and(Vec::is_empty);
+    }
+
     /// The first observed state is not a fresh press. Arm only once all held
     /// buttons have been released, including when identification supplied it.
     pub(super) fn observe_baseline(&mut self, update: &ButtonUpdate) -> bool {
-        if self.baseline_ready {
-            return true;
-        }
         match update {
             ButtonUpdate::InitialState(buttons) => self.baseline_buttons = Some(buttons.clone()),
             ButtonUpdate::Changes(changes) => {
@@ -29,7 +33,9 @@ impl Controls {
                 }
             }
         }
-        self.baseline_ready = self.baseline_buttons.as_ref().is_some_and(Vec::is_empty);
+        if !self.baseline_ready {
+            self.baseline_ready = self.baseline_buttons.as_ref().is_some_and(Vec::is_empty);
+        }
         self.baseline_ready
     }
 
@@ -308,6 +314,48 @@ mod tests {
         assert_eq!(
             tracker.snapshot(),
             Some(ButtonUpdate::InitialState(Vec::new()))
+        );
+    }
+
+    #[test]
+    fn profile_switch_waits_for_buttons_pressed_while_hardware_was_inactive() {
+        let mut controls = Controls::default();
+        assert!(controls.observe_baseline(&ButtonUpdate::InitialState(Vec::new())));
+        // Tracking continues while the keyboard controls another microphone.
+        assert!(controls.observe_baseline(&change(Button::F2, true)));
+        controls.rearm();
+        assert!(!controls.baseline_ready);
+        assert!(controls.observe_baseline(&change(Button::F2, false)));
+        controls.set_enabled(true);
+        controls.set_record_available(true);
+        assert!(controls
+            .buttons(change(Button::F2, false), ActivationMode::PushToTalk)
+            .is_empty());
+        assert_eq!(
+            controls.buttons(change(Button::F2, true), ActivationMode::PushToTalk),
+            vec![ControlAction::PasteLast]
+        );
+    }
+
+    #[test]
+    fn a_rec_held_before_profile_activation_does_not_start_on_release() {
+        let mut controls = Controls::default();
+        controls.observe_baseline(&ButtonUpdate::InitialState(Vec::new()));
+        controls.observe_baseline(&change(Button::Record, true));
+        controls.rearm();
+        assert!(!controls.baseline_ready);
+        assert!(controls.observe_baseline(&change(Button::Record, false)));
+        controls.set_enabled(true);
+        controls.set_record_available(true);
+        assert!(controls
+            .buttons(change(Button::Record, false), ActivationMode::ToggleToTalk)
+            .is_empty());
+        assert_eq!(
+            controls.buttons(change(Button::Record, true), ActivationMode::ToggleToTalk),
+            vec![ControlAction::Record(
+                ActivationMode::ToggleToTalk,
+                KeyEventType::Pressed
+            )]
         );
     }
 }

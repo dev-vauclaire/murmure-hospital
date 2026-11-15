@@ -34,17 +34,24 @@ pub fn get_current_mic_id(app: AppHandle) -> Result<Option<String>, String> {
 }
 
 #[command]
-pub fn set_current_mic_id(
+pub async fn set_current_mic_id(
     app: AppHandle,
     mic_id: Option<String>,
     mic_label: Option<String>,
 ) -> Result<(), String> {
-    let mut s = crate::settings::load_settings(&app);
-    s.mic_id = mic_id.clone();
-    s.mic_label = mic_label;
-    crate::settings::save_settings(&app, &s)?;
-    crate::audio::microphone::update_mic_cache(&app, mic_id);
-    Ok(())
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::speechmike::with_microphone_selection_change(&app, || {
+            let mut s = crate::settings::load_settings(&app);
+            s.mic_id = mic_id.clone();
+            s.mic_label = mic_label;
+            crate::settings::save_settings(&app, &s)?;
+            crate::speechmike::request_context_refresh(&app);
+            crate::audio::microphone::update_mic_cache(&app, mic_id);
+            Ok(())
+        })
+    })
+    .await
+    .map_err(|_| "Failed to change the microphone".to_string())?
 }
 
 #[command]
