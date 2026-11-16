@@ -1,31 +1,57 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'react-toastify';
 import { useTranslation } from '@/i18n';
 import { FormattingSettings, FormattingRule, MatchMode, defaultFormattingSettings, migrateRule } from '../types';
+import {
+    deleteHospitalRule,
+    reconcileHospitalRuleHelpers,
+    reorderVisibleHospitalRules,
+    updateHospitalRule,
+} from '../hospital-rule-settings.helpers';
 
 export const useFormattingRules = () => {
     const [settings, setSettings] = useState<FormattingSettings>(defaultFormattingSettings);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
+    const loadRequest = useRef(0);
     const { t } = useTranslation();
 
     const loadSettings = useCallback(async () => {
+        const request = ++loadRequest.current;
+        setIsLoading(true);
+        setLoadError(false);
         try {
             const loaded = await invoke<FormattingSettings>('get_formatting_settings');
+            if (request !== loadRequest.current) return;
             const migratedSettings = {
                 ...loaded,
                 rules: loaded.rules.map((rule) => migrateRule(rule as unknown as Record<string, unknown>)),
             };
-            setSettings(migratedSettings);
-        } catch (error) {
-            console.error('Failed to load formatting settings:', error);
+            const reconciledRules = reconcileHospitalRuleHelpers(migratedSettings.rules);
+            const reconciledSettings = { ...migratedSettings, rules: reconciledRules };
+            // Persist before exposing the editor: the backend must use the same
+            // enabled state as the visible command when its helper is hidden.
+            if (reconciledRules !== migratedSettings.rules) {
+                await invoke('set_formatting_settings', { settings: reconciledSettings });
+            }
+            if (request !== loadRequest.current) return;
+            setSettings(reconciledSettings);
+        } catch {
+            if (request !== loadRequest.current) return;
+            console.error('Failed to load formatting settings');
+            setLoadError(true);
         } finally {
-            setIsLoading(false);
+            if (request === loadRequest.current) setIsLoading(false);
         }
     }, []);
 
     useEffect(() => {
         loadSettings();
+        // Ignore stale loads, including the first StrictMode effect in development.
+        return () => {
+            loadRequest.current++;
+        };
     }, [loadSettings]);
 
     const saveSettings = useCallback(
@@ -79,7 +105,7 @@ export const useFormattingRules = () => {
         async (id: string, updates: Partial<Omit<FormattingRule, 'id'>>) => {
             const newSettings = {
                 ...settings,
-                rules: settings.rules.map((rule) => (rule.id === id ? { ...rule, ...updates } : rule)),
+                rules: updateHospitalRule(settings.rules, id, updates),
             };
             await saveSettings(newSettings);
         },
@@ -90,7 +116,7 @@ export const useFormattingRules = () => {
         async (id: string) => {
             const newSettings = {
                 ...settings,
-                rules: settings.rules.filter((rule) => rule.id !== id),
+                rules: deleteHospitalRule(settings.rules, id),
             };
             await saveSettings(newSettings);
         },
@@ -117,13 +143,8 @@ export const useFormattingRules = () => {
 
     const reorderRules = useCallback(
         async (activeId: string, overId: string) => {
-            const oldIndex = settings.rules.findIndex((rule) => rule.id === activeId);
-            const newIndex = settings.rules.findIndex((rule) => rule.id === overId);
-            if (oldIndex === -1 || newIndex === -1) return;
-
-            const newRules = [...settings.rules];
-            const [moved] = newRules.splice(oldIndex, 1);
-            newRules.splice(newIndex, 0, moved);
+            const newRules = reorderVisibleHospitalRules(settings.rules, activeId, overId);
+            if (newRules === settings.rules) return;
 
             const newSettings = {
                 ...settings,
@@ -137,6 +158,8 @@ export const useFormattingRules = () => {
     return {
         settings,
         isLoading,
+        loadError,
+        retryLoad: loadSettings,
         updateBuiltInOption,
         addRule,
         updateRule,

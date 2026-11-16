@@ -710,5 +710,9 @@
     "No words yet": "Aucun mot pour l'instant",
     "Try adding one of these:": "Essayez d'en ajouter un :",
     "Improved": "Amélioré",
-    "The dictionary has been improved. Your words now enrich the recognition model directly during transcription, instead of being corrected in post-processing.": "Le dictionnaire a été amélioré. Vos mots enrichissent maintenant directement le modèle de reconnaissance pendant la transcription, au lieu d'être corrigés en post-traitement."
+    "The dictionary has been improved. Your words now enrich the recognition model directly during transcription, instead of being corrected in post-processing.": "Le dictionnaire a été amélioré. Vos mots enrichissent maintenant directement le modèle de reconnaissance pendant la transcription, au lieu d'être corrigés en post-traitement.",
+    "Show an example for {{name}}": "Afficher un exemple pour {{name}}",
+    "Result": "Résultat",
+    "Unable to load formatting rules.": "Impossible de charger les règles personnalisées.",
+    "Custom rule": "règle personnalisée"
 }

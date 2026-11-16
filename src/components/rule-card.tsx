@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FormattingRule } from '../features/personalize/formatting-rules/types';
 import { Switch } from '@/components/switch';
-import { Trash2, Copy, ChevronDown, ChevronUp, Regex, GripVertical, Pencil, Check, X } from 'lucide-react';
+import { Trash2, Copy, ChevronDown, ChevronUp, Regex, GripVertical, Pencil, Check, X, CircleHelp } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { Button } from './button';
 import { Input } from './input';
@@ -9,6 +9,8 @@ import { RuleFormFields } from './rule-form-fields';
 import { RuleSummary } from './rule-summary';
 import { useRegexValidation } from '@/features/personalize/formatting-rules/hooks/use-regex-validation';
 import { useRenameRule } from './hooks/use-rename-rule';
+import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
+import type { RuleExample } from '@/features/personalize/formatting-rules/hospital-rule-presentation';
 
 interface RuleCardProps {
     rule: FormattingRule;
@@ -16,9 +18,10 @@ interface RuleCardProps {
     onDelete: (id: string) => void;
     onDuplicate: (id: string) => void;
     dragHandleProps?: Record<string, unknown>;
+    example?: RuleExample;
 }
 
-export const RuleCard = ({ rule, onUpdate, onDelete, onDuplicate, dragHandleProps }: RuleCardProps) => {
+export const RuleCard = ({ rule, onUpdate, onDelete, onDuplicate, dragHandleProps, example }: RuleCardProps) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const { t } = useTranslation();
 
@@ -83,7 +86,40 @@ export const RuleCard = ({ rule, onUpdate, onDelete, onDuplicate, dragHandleProp
                             </div>
                         </div>
                     ) : (
-                        <RuleSummary trigger={rule.trigger} replacement={rule.replacement} name={rule.name} />
+                        <>
+                            <RuleSummary trigger={rule.trigger} replacement={rule.replacement} name={rule.name} />
+                            {example !== undefined && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon-sm"
+                                            className="text-muted-foreground hover:text-foreground"
+                                            aria-label={t('Show an example for {{name}}', {
+                                                name: rule.name || t('Custom rule'),
+                                            })}
+                                            data-testid={`rule-example-${rule.id}`}
+                                        >
+                                            <CircleHelp className="size-4" aria-hidden="true" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                        className="max-w-sm space-y-3 p-3 text-sm"
+                                        data-testid={`rule-example-content-${rule.id}`}
+                                    >
+                                        <div className="space-y-1">
+                                            <p className="font-medium text-sky-400">{t('You say')}</p>
+                                            <p className="whitespace-pre-wrap">{example.spoken}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="font-medium text-sky-400">{t('Result')}</p>
+                                            <p className="whitespace-pre-wrap">{example.result}</p>
+                                        </div>
+                                    </TooltipContent>
+                                </Tooltip>
+                            )}
+                        </>
                     )}
                 </div>
                 <div className="flex items-center gap-1">

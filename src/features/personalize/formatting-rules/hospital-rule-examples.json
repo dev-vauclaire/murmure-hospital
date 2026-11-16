@@ -1,0 +1,122 @@
+{
+    "hospital-inserer-un-point-virgule": {
+        "spoken": "Première partie insérer un point-virgule suite",
+        "result": "Première partie ; suite"
+    },
+    "hospital-inserer-deux-points": {
+        "spoken": "Résultat insérer deux points normal",
+        "result": "Résultat : normal"
+    },
+    "hospital-inserer-un-point-interrogation": {
+        "spoken": "Est-ce correct insérer un point d’interrogation",
+        "result": "Est-ce correct ?"
+    },
+    "hospital-inserer-un-point-exclamation": {
+        "spoken": "Attention insérer un point d’exclamation",
+        "result": "Attention !"
+    },
+    "hospital-inserer-des-points-suspension": {
+        "spoken": "Attendez insérer des points de suspension",
+        "result": "Attendez…"
+    },
+    "hospital-inserer-un-point": {
+        "spoken": "Bonjour insérer un point",
+        "result": "Bonjour."
+    },
+    "hospital-inserer-une-virgule": {
+        "spoken": "Bonjour insérer une virgule comment allez-vous",
+        "result": "Bonjour, comment allez-vous"
+    },
+    "hospital-inserer-un-tiret": {
+        "spoken": "un insérer un tiret deux",
+        "result": "un - deux"
+    },
+    "hospital-ouvrir-les-guillemets": {
+        "spoken": "Exemple ouvrir les guillemets texte",
+        "result": "Exemple \"texte"
+    },
+    "hospital-fermer-les-guillemets": {
+        "spoken": "texte fermer les guillemets",
+        "result": "texte\""
+    },
+    "hospital-ouvrir-une-parenthese": {
+        "spoken": "Exemple ouvrir une parenthèse texte",
+        "result": "Exemple (texte"
+    },
+    "hospital-fermer-une-parenthese": {
+        "spoken": "texte fermer une parenthèse",
+        "result": "texte)"
+    },
+    "hospital-ouvrir-un-crochet": {
+        "spoken": "Exemple ouvrir un crochet texte",
+        "result": "Exemple [texte"
+    },
+    "hospital-fermer-un-crochet": {
+        "spoken": "texte fermer un crochet",
+        "result": "texte]"
+    },
+    "hospital-ouvrir-une-accolade": {
+        "spoken": "Exemple ouvrir une accolade texte",
+        "result": "Exemple {texte"
+    },
+    "hospital-fermer-une-accolade": {
+        "spoken": "texte fermer une accolade",
+        "result": "texte}"
+    },
+    "hospital-saut-de-ligne": {
+        "spoken": "Première ligne saut de ligne deuxième ligne",
+        "result": "Première ligne\ndeuxième ligne"
+    },
+    "hospital-nouveau-paragraphe": {
+        "spoken": "Premier paragraphe nouveau paragraphe deuxième paragraphe",
+        "result": "Premier paragraphe\n\ndeuxième paragraphe"
+    },
+    "hospital-inserer-une-puce": {
+        "spoken": "insérer une puce premier élément",
+        "result": "• premier élément"
+    },
+    "hospital-nouvelle-puce": {
+        "spoken": "Premier élément nouvelle puce deuxième élément",
+        "result": "Premier élément\n• deuxième élément"
+    },
+    "hospital-inserer-un-pour-cent": {
+        "spoken": "50 insérer un pour cent",
+        "result": "50 %"
+    },
+    "hospital-inserer-un-signe-plus": {
+        "spoken": "2 insérer un signe plus 3",
+        "result": "2 + 3"
+    },
+    "hospital-inserer-un-signe-moins": {
+        "spoken": "5 insérer un signe moins 2",
+        "result": "5 − 2"
+    },
+    "hospital-inserer-un-signe-egal": {
+        "spoken": "Résultat insérer un signe égal 5",
+        "result": "Résultat = 5"
+    },
+    "hospital-inserer-un-signe-fois": {
+        "spoken": "2 insérer un signe fois 3",
+        "result": "2 × 3"
+    },
+    "hospital-inserer-une-barre-oblique": {
+        "spoken": "10 insérer une barre oblique 2",
+        "result": "10/2"
+    },
+    "hospital-inserer-une-arobase": {
+        "spoken": "test insérer une arobase exemple.invalid",
+        "result": "test@exemple.invalid"
+    },
+    "hospital-inserer-un-diese": {
+        "spoken": "insérer un dièse exemple",
+        "result": "#exemple"
+    },
+    "hospital-inserer-un-symbole-degre": {
+        "spoken": "20 insérer un symbole degré",
+        "result": "20°"
+    },
+    "hospital-inserer-un-asterisque": {
+        "spoken": "note insérer un astérisque",
+        "result": "note *"
+    }
+}

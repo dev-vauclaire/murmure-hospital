@@ -268,6 +268,32 @@ mod tests {
     }
 
     #[test]
+    fn hospital_ui_examples_match_the_real_formatter() {
+        let examples: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../src/features/personalize/formatting-rules/hospital-rule-examples.json"
+        ))
+        .expect("Hospital UI examples must contain valid JSON");
+        let examples = examples
+            .as_object()
+            .expect("Examples must be keyed by rule ID");
+        assert_eq!(examples.len(), 30);
+        let settings = hospital_settings();
+        for (id, example) in examples {
+            assert!(settings.rules.iter().any(|rule| rule.id == *id));
+            let spoken = example["spoken"].as_str().expect("Spoken example required");
+            let expected = example["result"].as_str().expect("Example result required");
+            let actual = crate::formatting_rules::apply_formatting(spoken.to_owned(), &settings);
+            // The tooltip omits the final space used for insertion, but keeps
+            // actual line breaks so users can see paragraph and bullet examples.
+            assert_eq!(
+                actual.trim_end_matches(' '),
+                expected,
+                "Invalid example: {id}"
+            );
+        }
+    }
+
+    #[test]
     fn hospital_spoken_punctuation_takes_priority_over_adjacent_automatic_punctuation() {
         assert_hospital_formats(&[
             ("Bonjour, insérer une virgule monde.", "Bonjour, monde. "),

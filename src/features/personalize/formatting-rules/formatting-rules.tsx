@@ -29,12 +29,16 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { FormattingRule } from './types';
+import { Button } from '@/components/button';
+import { getHospitalRuleExample, isHiddenHospitalRule } from './hospital-rule-presentation';
+import type { RuleExample } from './hospital-rule-presentation';
 
 interface SortableRuleCardProps {
     rule: FormattingRule;
     onUpdate: (id: string, updates: Partial<Omit<FormattingRule, 'id'>>) => void;
     onDelete: (id: string) => void;
     onDuplicate: (id: string) => void;
+    example?: RuleExample;
 }
 
 const SortableRuleCard = ({ rule, ...props }: SortableRuleCardProps) => {
@@ -58,8 +62,18 @@ const SortableRuleCard = ({ rule, ...props }: SortableRuleCardProps) => {
 
 export const FormattingRules = () => {
     const { t } = useTranslation();
-    const { settings, isLoading, updateBuiltInOption, addRule, updateRule, deleteRule, duplicateRule, reorderRules } =
-        useFormattingRules();
+    const {
+        settings,
+        isLoading,
+        loadError,
+        retryLoad,
+        updateBuiltInOption,
+        addRule,
+        updateRule,
+        deleteRule,
+        duplicateRule,
+        reorderRules,
+    } = useFormattingRules();
     const thresholdInputRef = useRef<HTMLInputElement>(null);
     const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -84,7 +98,26 @@ export const FormattingRules = () => {
         }
     };
 
-    const activeRule = (activeId != null && settings.rules.find((rule) => rule.id === activeId)) || undefined;
+    const visibleRules = settings.rules.filter((rule) => !isHiddenHospitalRule(rule));
+    const activeRule = (activeId != null && visibleRules.find((rule) => rule.id === activeId)) || undefined;
+
+    if (loadError) {
+        return (
+            <main className="space-y-8">
+                <Page.Header>
+                    <Typography.MainTitle data-testid="formatting-rules-title">
+                        {t('Custom rules')}
+                    </Typography.MainTitle>
+                </Page.Header>
+                <div role="alert" className="flex items-center gap-3">
+                    <Typography.Paragraph>{t('Unable to load formatting rules.')}</Typography.Paragraph>
+                    <Button variant="ghost" onClick={() => void retryLoad()} data-testid="formatting-rules-retry">
+                        {t('Retry')}
+                    </Button>
+                </div>
+            </main>
+        );
+    }
 
     if (isLoading) {
         return (
@@ -188,7 +221,7 @@ export const FormattingRules = () => {
             <div id="custom-rules" className="space-y-4">
                 <Typography.Paragraph>
                     {t('Replace words or patterns with your own text. Rules apply from top to bottom.')}
-                    {settings.rules.length === 0 && (
+                    {visibleRules.length === 0 && (
                         <>
                             <br />
                             <span className="text-xs italic text-muted-foreground">
@@ -197,7 +230,7 @@ export const FormattingRules = () => {
                         </>
                     )}
                 </Typography.Paragraph>
-                {settings.rules.length > 0 && (
+                {visibleRules.length > 0 && (
                     <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
@@ -206,17 +239,18 @@ export const FormattingRules = () => {
                         modifiers={[restrictToVerticalAxis]}
                     >
                         <SortableContext
-                            items={settings.rules.map((rule) => rule.id)}
+                            items={visibleRules.map((rule) => rule.id)}
                             strategy={verticalListSortingStrategy}
                         >
                             <div className="space-y-3">
-                                {settings.rules.map((rule) => (
+                                {visibleRules.map((rule) => (
                                     <SortableRuleCard
                                         key={rule.id}
                                         rule={rule}
                                         onUpdate={updateRule}
                                         onDelete={deleteRule}
                                         onDuplicate={duplicateRule}
+                                        example={getHospitalRuleExample(rule)}
                                     />
                                 ))}
                             </div>
@@ -228,6 +262,7 @@ export const FormattingRules = () => {
                                     onUpdate={updateRule}
                                     onDelete={deleteRule}
                                     onDuplicate={duplicateRule}
+                                    example={getHospitalRuleExample(activeRule)}
                                 />
                             )}
                         </DragOverlay>
