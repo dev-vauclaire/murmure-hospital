@@ -105,14 +105,14 @@ function Read-MsiProperty {
     try {
         $query = 'SELECT `Value` FROM `Property` WHERE `Property` = ' + "'$Name'"
         $view = $Database.OpenView($query)
-        $view.Execute()
+        [void] $view.Execute()
         $record = $view.Fetch()
         if ($null -eq $record) { return $null }
-        return $record.StringData(1)
+        return [string] $record.StringData(1)
     } finally {
         if ($null -ne $record) { [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($record) }
         if ($null -ne $view) {
-            $view.Close()
+            [void] $view.Close()
             [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($view)
         }
     }
