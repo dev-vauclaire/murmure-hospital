@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:bal="http://schemas.microsoft.com/wix/BalExtension"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+    <!-- Keep this identity across releases, independently of the MSI UpgradeCode. -->
+    <Bundle Name="Murmure Hospital"
+            Version="$(var.BundleVersion)"
+            Manufacturer="Murmure Hospital"
+            UpgradeCode="7F08032B-ECE6-40F1-8615-864F3EF3684C"
+            Compressed="yes"
+            IconSourceFile="$(var.IconPath)">
+        <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.RtfLicense">
+            <bal:WixStandardBootstrapperApplication LicenseFile="$(var.LicensePath)"
+                                                    SuppressOptionsUI="yes"
+                                                    ShowVersion="yes" />
+        </BootstrapperApplicationRef>
+
+        <util:RegistrySearch Id="VcRuntimeInstalledSearch"
+                             Variable="VcRuntimeX64Installed"
+                             Root="HKLM"
+                             Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+                             Value="Installed"
+                             Result="value"
+                             Format="raw"
+                             Win64="yes" />
+        <util:RegistrySearch Id="VcRuntimeVersionSearch"
+                             Variable="VcRuntimeX64Version"
+                             Root="HKLM"
+                             Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+                             Value="Version"
+                             Result="value"
+                             Format="raw"
+                             Win64="yes" />
+
+        <Chain>
+            <!-- A shared system prerequisite must survive uninstall and rollback. -->
+            <ExePackage Id="VcRedistX64"
+                        SourceFile="$(var.VcRedistPath)"
+                        Name="VC_redist.x64.exe"
+                        DetectCondition="VcRuntimeX64Installed = 1 AND VcRuntimeX64Version &gt;= v$(var.VcRedistVersion)"
+                        InstallCommand="/install /quiet /norestart"
+                        PerMachine="yes"
+                        Permanent="yes"
+                        Vital="yes"
+                        Compressed="yes">
+                <ExitCode Value="0" Behavior="success" />
+                <ExitCode Value="3010" Behavior="scheduleReboot" />
+                <ExitCode Behavior="error" />
+            </ExePackage>
+            <!-- Do not launch Murmure under the installing administrator's profile. -->
+            <MsiPackage Id="MurmureMsi"
+                        SourceFile="$(var.MsiPath)"
+                        Name="Murmure.msi"
+                        DisplayInternalUI="no"
+                        Vital="yes"
+                        Compressed="yes" />
+        </Chain>
+    </Bundle>
+</Wix>

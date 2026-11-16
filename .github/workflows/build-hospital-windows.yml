@@ -5,11 +5,12 @@ on:
     workflow_dispatch:
         inputs:
             installer_format:
-                description: Format d'installation
+                description: 'setup : tous utilisateurs avec Visual C++ ; msi : sans prérequis ; exe : utilisateur courant'
                 type: choice
                 required: true
-                default: exe
+                default: setup
                 options:
+                    - setup
                     - exe
                     - msi
 
@@ -36,6 +37,12 @@ jobs:
                   REQUESTED_INSTALLER_FORMAT: ${{ inputs.installer_format }}
               run: |
                   switch -CaseSensitive ($env:REQUESTED_INSTALLER_FORMAT) {
+                      'setup' {
+                          $installerFormat = 'setup'
+                          $bundle = 'msi'
+                          $filePattern = '*.msi'
+                          $installScope = 'perMachine'
+                      }
                       'exe' {
                           $installerFormat = 'exe'
                           $bundle = 'nsis'
@@ -53,13 +60,21 @@ jobs:
                           $installScope = 'perMachine'
                       }
                       default {
-                          throw 'Unsupported installer format. Choose exe or msi.'
+                          throw 'Unsupported installer format. Choose setup, exe or msi.'
                       }
                   }
                   "format=$installerFormat" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
                   "bundle=$bundle" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
                   "file_pattern=$filePattern" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
                   "install_scope=$installScope" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+            - name: Check Windows packaging scripts
+              run: |
+                  python packaging/windows/test-bootstrapper.py
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'Windows packaging checks failed.'
+                  }
+                  & ./packaging/windows/test-bootstrapper.ps1 -SyntaxOnly
 
             - name: Check hospital default files
               run: |
@@ -210,6 +225,41 @@ jobs:
                       signed = $false
                   }
                   $metadata | ConvertTo-Json | Set-Content -LiteralPath "$artifactDirectory/build-info.json" -Encoding utf8
+
+            - name: Build complete setup with Visual C++
+              if: ${{ inputs.installer_format == 'setup' }}
+              run: |
+                  $msiFiles = @(Get-ChildItem -LiteralPath 'hospital-windows-artifact' -Filter '*.msi' -File)
+                  if ($msiFiles.Count -ne 1) {
+                      throw 'Expected exactly one MSI to wrap.'
+                  }
+                  # Burn v3 needs a new four-part version for each published build.
+                  # GITHUB_RUN_NUMBER stays identical on rerun; RUN_ATTEMPT avoids duplicates.
+                  $bundleRevision = ([long]$env:GITHUB_RUN_NUMBER * 100) + [long]$env:GITHUB_RUN_ATTEMPT
+                  if ([long]$env:GITHUB_RUN_ATTEMPT -ge 100 -or $bundleRevision -gt 65535) {
+                      throw 'The bundle revision exceeds its range. Bump the application version and review the revision scheme.'
+                  }
+                  & ./packaging/windows/build-bootstrapper.ps1 -MsiPath $msiFiles[0].FullName `
+                      -OutputDirectory (Resolve-Path 'hospital-windows-artifact').Path `
+                      -BundleRevision $bundleRevision `
+                      -WorkingDirectory (Join-Path $env:RUNNER_TEMP "murmure-bootstrapper-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT")
+
+                  $artifactDirectory = 'hospital-windows-artifact'
+                  $setup = Get-Content -LiteralPath "$artifactDirectory/bootstrapper-info.json" -Raw | ConvertFrom-Json
+                  $metadata = Get-Content -LiteralPath "$artifactDirectory/build-info.json" -Raw | ConvertFrom-Json -AsHashtable
+                  $metadata['msi'] = $metadata['installer']
+                  $metadata['msi_sha256'] = $metadata['installer_sha256']
+                  $metadata['installer'] = $setup.setup
+                  $metadata['installer_sha256'] = $setup.setup_sha256
+                  $metadata['bundle_version'] = $setup.bundle_version
+                  $metadata['vc_redist'] = $setup.vc_redist
+                  $metadata['wix_version'] = $setup.wix_version
+                  $metadata['wix_sha256'] = $setup.wix_sha256
+                  $metadata | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$artifactDirectory/build-info.json" -Encoding utf8
+                  @(
+                      "$($setup.setup_sha256)  $($setup.setup)",
+                      "$($setup.msi_sha256)  $($setup.msi)"
+                  ) | Set-Content -LiteralPath "$artifactDirectory/SHA256SUMS.txt" -Encoding ascii
 
             - name: Upload Windows test package
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
