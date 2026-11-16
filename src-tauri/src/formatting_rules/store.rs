@@ -84,7 +84,7 @@ mod tests {
     }
 
     #[test]
-    fn hospital_commands_are_present_in_the_dictionary_and_replace_standalone_dictation() {
+    fn hospital_original_commands_are_in_the_dictionary_and_replace_standalone_dictation() {
         let dictionary: serde_json::Value = serde_json::from_str(include_str!(
             "../../../resources/hospital/default-dictionnary.json"
         ))
@@ -100,7 +100,7 @@ mod tests {
         ] {
             assert!(
                 dictionary.get(command).is_some(),
-                "Every default voice command must have a dictionary entry"
+                "Every original hospital voice command must retain its dictionary entry"
             );
             assert_eq!(
                 crate::formatting_rules::apply_formatting(transcription.to_string(), &settings),
@@ -174,6 +174,8 @@ mod tests {
         let settings = hospital_settings();
         for (transcription, expected) in [
             ("insérer un point insérer une virgule", "., "),
+            ("insérer un point insérer un point", ".. "),
+            ("Bonjour insérer un point insérer un point", "Bonjour.. "),
             ("insérer une virgule insérer un point", ",. "),
             ("Insérer un point. Insérer une virgule.", "., "),
             ("Fermer les guillemets. Insérer un point.", "\". "),
@@ -216,6 +218,172 @@ mod tests {
             ),
             "Bonjour. Suite. "
         );
+    }
+
+    fn assert_hospital_formats(cases: &[(&str, &str)]) {
+        let settings = hospital_settings();
+        for (transcription, expected) in cases {
+            assert_eq!(
+                crate::formatting_rules::apply_formatting(transcription.to_string(), &settings),
+                *expected,
+                "Unexpected formatting for synthetic transcription: {transcription:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn hospital_supports_the_thirty_voice_commands_with_recognizer_punctuation() {
+        assert_hospital_formats(&[
+            ("Insérer un point.", ". "),
+            ("Insérer une virgule.", ", "),
+            ("Insérer un point-virgule.", "; "),
+            ("Insérer deux points.", ": "),
+            ("Insérer un point d'interrogation.", "? "),
+            ("Insérer un point d'exclamation.", "! "),
+            ("Insérer des points de suspension.", "… "),
+            ("Insérer un tiret.", "- "),
+            ("Ouvrir les guillemets.", "\" "),
+            ("Fermer les guillemets.", "\" "),
+            ("Ouvrir une parenthèse.", "( "),
+            ("Fermer une parenthèse.", ") "),
+            ("Ouvrir un crochet.", "[ "),
+            ("Fermer un crochet.", "] "),
+            ("Ouvrir une accolade.", "{ "),
+            ("Fermer une accolade.", "} "),
+            ("Saut de ligne.", "\n"),
+            ("Nouveau paragraphe.", "\n\n"),
+            ("Insérer une puce.", "• "),
+            ("Nouvelle puce.", "\n• "),
+            ("Insérer un pour cent.", "% "),
+            ("Insérer un signe plus.", "+ "),
+            ("Insérer un signe moins.", "− "),
+            ("Insérer un signe égal.", "= "),
+            ("Insérer un signe fois.", "× "),
+            ("Insérer une barre oblique.", "/ "),
+            ("Insérer une arobase.", "@ "),
+            ("Insérer un dièse.", "# "),
+            ("Insérer un symbole degré.", "° "),
+            ("Insérer un astérisque.", "* "),
+        ]);
+    }
+
+    #[test]
+    fn hospital_spoken_punctuation_takes_priority_over_adjacent_automatic_punctuation() {
+        assert_hospital_formats(&[
+            ("Bonjour, insérer une virgule monde.", "Bonjour, monde. "),
+            ("Bonjour, insérer une virgule, monde.", "Bonjour, monde. "),
+            ("Bonjour insérer une virgule , monde.", "Bonjour, monde. "),
+            ("Bonjour. Insérer une virgule. Monde.", "Bonjour, Monde. "),
+            (
+                "Bonjour , . insérer une virgule . , monde.",
+                "Bonjour, monde. ",
+            ),
+            ("Bonjour.	Insérer un point.	Suite.", "Bonjour. Suite. "),
+            ("Bonjour,insérer une virgule,monde.", "Bonjour, monde. "),
+            (", insérer une virgule , .", ", "),
+        ]);
+    }
+
+    #[test]
+    fn hospital_long_commands_are_not_partially_replaced_by_point_or_puce() {
+        assert_hospital_formats(&[
+            ("insérer un point virgule", "; "),
+            ("insérer un point‐virgule", "; "),
+            ("insérer un point d’interrogation", "? "),
+            ("insérer un point d’exclamation", "! "),
+            (
+                "Bonjour insérer un point-virgule suite insérer un point",
+                "Bonjour ; suite. ",
+            ),
+            (
+                "Est-ce correct insérer un point d'interrogation",
+                "Est-ce correct ? ",
+            ),
+            ("Attention insérer un point d'exclamation", "Attention ! "),
+            ("insérer un point’", ".’ "),
+            ("Texte, insérer un point’", "Texte.’ "),
+            ("Texte insérer un point/fin", "Texte./fin "),
+            (
+                "Première partie insérer deux points suite",
+                "Première partie : suite ",
+            ),
+            ("insérer une puce alpha", "• alpha "),
+            (
+                "nouvelle puce alpha nouvelle puce bêta",
+                "\n• alpha\n• bêta ",
+            ),
+        ]);
+    }
+
+    #[test]
+    fn hospital_mixed_punctuation_preserves_numbers_abbreviations_and_negations() {
+        let settings = hospital_settings();
+        for transcription in [
+            "Valeur fictive : 12,5 ; autre valeur : 12.5.",
+            "Attendez... aucune modification n'est demandée.",
+            "Le Dr. Exemple ne constate rien.",
+            "Version 2.0.3, le 01/02/2026.",
+            "Ni l'un, ni l'autre : rien n'est confirmé !",
+        ] {
+            assert_eq!(
+                crate::formatting_rules::apply_formatting(transcription.to_string(), &settings),
+                format!("{transcription} ")
+            );
+        }
+        assert_hospital_formats(&[
+            (
+                "Valeur 12,5, insérer une virgule pas de changement.",
+                "Valeur 12,5, pas de changement. ",
+            ),
+            (
+                "Valeur 12.5. insérer un point Aucune négation n'est supprimée.",
+                "Valeur 12.5. Aucune négation n'est supprimée. ",
+            ),
+        ]);
+    }
+
+    #[test]
+    fn hospital_new_commands_preserve_ordinary_words_and_complete_word_boundaries() {
+        let settings = hospital_settings();
+        for transcription in [
+            "Une parenthèse, un crochet, une accolade et une puce.",
+            "Un pour cent, un signe plus et un symbole degré.",
+            "Réinsérer un tiret et insérer un tiretage.",
+            "Ouvrir une parenthèses et fermer une parenthèses.",
+            "De nouvelles puces et un nouveau paragraphes.",
+        ] {
+            assert_eq!(
+                crate::formatting_rules::apply_formatting(transcription.to_string(), &settings),
+                format!("{transcription} ")
+            );
+        }
+    }
+
+    #[test]
+    fn hospital_new_bracket_commands_keep_text_and_generated_punctuation() {
+        assert_hospital_formats(&[
+            (
+                "Exemple ouvrir une parenthèse texte fermer une parenthèse insérer un point",
+                "Exemple (texte). ",
+            ),
+            (
+                "Ouvrir un crochet texte fermer un crochet insérer une virgule suite",
+                "[texte], suite ",
+            ),
+            (
+                "Ouvrir une accolade texte fermer une accolade insérer un point",
+                "{texte}. ",
+            ),
+            ("Insérer un point-virgule. Insérer une virgule.", ";, "),
+            (
+                "Insérer un point d'interrogation. Saut de ligne. Suite.",
+                "?\nSuite. ",
+            ),
+            (
+                "Bonjour. Saut de ligne. Suite insérer un point.",
+                "Bonjour.\nSuite. ",
+            ),
+        ]);
     }
 
     fn model_with_rules(rules: serde_json::Value) -> serde_json::Value {

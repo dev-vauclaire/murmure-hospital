@@ -11,9 +11,89 @@
         "rules": [
             {
                 "id": "hospital-ponctuation-commandes-vocales",
-                "name": "Ponctuation automatique des commandes vocales",
-                "trigger": "(?i)(\\b(?:insérer[ \\t]+un[ \\t]+point|insérer[ \\t]+une[ \\t]+virgule|saut[ \\t]+de[ \\t]+ligne|nouveau[ \\t]+paragraphe|ouvrir[ \\t]+les[ \\t]+guillemets|fermer[ \\t]+les[ \\t]+guillemets)\\b)[.,]+[ \\t]*",
+                "name": "Nettoyage après les commandes vocales",
+                "trigger": "(?i)(\\b(?:insérer[ \\t]+un[ \\t]+point(?:[ \\t]*\\p{Pd}[ \\t]*|[ \\t]+)virgule|insérer[ \\t]+un[ \\t]+point[ \\t]+d['’][ \\t]*interrogation|insérer[ \\t]+un[ \\t]+point[ \\t]+d['’][ \\t]*exclamation|insérer[ \\t]+des[ \\t]+points[ \\t]+de[ \\t]+suspension|insérer[ \\t]+une[ \\t]+barre[ \\t]+oblique|insérer[ \\t]+un[ \\t]+symbole[ \\t]+degré|insérer[ \\t]+un[ \\t]+signe[ \\t]+moins|insérer[ \\t]+un[ \\t]+signe[ \\t]+plus|insérer[ \\t]+un[ \\t]+signe[ \\t]+égal|insérer[ \\t]+un[ \\t]+signe[ \\t]+fois|insérer[ \\t]+(?:deux|2)[ \\t]+points|insérer[ \\t]+un[ \\t]+pour[ \\t]*cent|ouvrir[ \\t]+les[ \\t]+guillemets|fermer[ \\t]+les[ \\t]+guillemets|ouvrir[ \\t]+une[ \\t]+parenthèse|fermer[ \\t]+une[ \\t]+parenthèse|insérer[ \\t]+un[ \\t]+astérisque|insérer[ \\t]+une[ \\t]+virgule|ouvrir[ \\t]+une[ \\t]+accolade|fermer[ \\t]+une[ \\t]+accolade|insérer[ \\t]+une[ \\t]+arobase|ouvrir[ \\t]+un[ \\t]+crochet|fermer[ \\t]+un[ \\t]+crochet|insérer[ \\t]+un[ \\t]+point|insérer[ \\t]+un[ \\t]+tiret|insérer[ \\t]+une[ \\t]+puce|insérer[ \\t]+un[ \\t]+dièse|saut[ \\t]+de[ \\t]+ligne|nouveau[ \\t]+paragraphe|nouvelle[ \\t]+puce)\\b)(?:[ \\t]*[.,;:!?…])+[ \\t]*",
                 "replacement": "${1} ",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-ponctuation-avant-commandes-vocales",
+                "name": "Nettoyage avant la ponctuation dictée",
+                "trigger": "(?i)(?:[.,;:!?…][ \\t]*)+(\\b(?:insérer[ \\t]+un[ \\t]+point(?:[ \\t]*\\p{Pd}[ \\t]*|[ \\t]+)virgule|insérer[ \\t]+un[ \\t]+point[ \\t]+d['’][ \\t]*interrogation|insérer[ \\t]+un[ \\t]+point[ \\t]+d['’][ \\t]*exclamation|insérer[ \\t]+des[ \\t]+points[ \\t]+de[ \\t]+suspension|insérer[ \\t]+(?:deux|2)[ \\t]+points|insérer[ \\t]+une[ \\t]+virgule|insérer[ \\t]+un[ \\t]+point|insérer[ \\t]+un[ \\t]+tiret)\\b)($|[^\\p{Pd}])",
+                "replacement": " ${1}${2}",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-point-virgule-debut-ligne",
+                "name": "Insérer un point-virgule — début de ligne",
+                "trigger": "(?im)^[ \\t]*\\binsérer[ \\t]+un[ \\t]+point(?:[ \\t]*\\p{Pd}[ \\t]*|[ \\t]+)virgule\\b",
+                "replacement": ";",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-deux-points-debut-ligne",
+                "name": "Insérer deux points — début de ligne",
+                "trigger": "(?im)^[ \\t]*\\binsérer[ \\t]+(?:deux|2)[ \\t]+points\\b",
+                "replacement": ":",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-point-interrogation-debut-ligne",
+                "name": "Insérer un point d’interrogation — début de ligne",
+                "trigger": "(?im)^[ \\t]*\\binsérer[ \\t]+un[ \\t]+point[ \\t]+d['’][ \\t]*interrogation\\b",
+                "replacement": "?",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-point-exclamation-debut-ligne",
+                "name": "Insérer un point d’exclamation — début de ligne",
+                "trigger": "(?im)^[ \\t]*\\binsérer[ \\t]+un[ \\t]+point[ \\t]+d['’][ \\t]*exclamation\\b",
+                "replacement": "!",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-point-virgule",
+                "name": "Insérer un point-virgule",
+                "trigger": "(?i)[ \\t]*\\binsérer[ \\t]+un[ \\t]+point(?:[ \\t]*\\p{Pd}[ \\t]*|[ \\t]+)virgule\\b",
+                "replacement": " ;",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-deux-points",
+                "name": "Insérer deux points",
+                "trigger": "(?i)[ \\t]*\\binsérer[ \\t]+(?:deux|2)[ \\t]+points\\b",
+                "replacement": " :",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-point-interrogation",
+                "name": "Insérer un point d’interrogation",
+                "trigger": "(?i)[ \\t]*\\binsérer[ \\t]+un[ \\t]+point[ \\t]+d['’][ \\t]*interrogation\\b",
+                "replacement": " ?",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-point-exclamation",
+                "name": "Insérer un point d’exclamation",
+                "trigger": "(?i)[ \\t]*\\binsérer[ \\t]+un[ \\t]+point[ \\t]+d['’][ \\t]*exclamation\\b",
+                "replacement": " !",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-des-points-suspension",
+                "name": "Insérer des points de suspension",
+                "trigger": "(?i)[ \\t]*\\binsérer[ \\t]+des[ \\t]+points[ \\t]+de[ \\t]+suspension\\b",
+                "replacement": "…",
                 "enabled": true,
                 "match_mode": "regex"
             },
@@ -34,18 +114,10 @@
                 "match_mode": "regex"
             },
             {
-                "id": "hospital-saut-de-ligne",
-                "name": "Saut de ligne",
-                "trigger": "(?i)[ \\t]*\\bsaut[ \\t]+de[ \\t]+ligne\\b[ \\t]*",
-                "replacement": "\n",
-                "enabled": true,
-                "match_mode": "regex"
-            },
-            {
-                "id": "hospital-nouveau-paragraphe",
-                "name": "Nouveau paragraphe",
-                "trigger": "(?i)[ \\t]*\\bnouveau[ \\t]+paragraphe\\b[ \\t]*",
-                "replacement": "\n\n",
+                "id": "hospital-inserer-un-tiret",
+                "name": "Insérer un tiret",
+                "trigger": "(?i)\\binsérer[ \\t]+un[ \\t]+tiret\\b[ \\t]*",
+                "replacement": "- ",
                 "enabled": true,
                 "match_mode": "regex"
             },
@@ -62,6 +134,166 @@
                 "name": "Fermer les guillemets",
                 "trigger": "(?i)[ \\t]*\\bfermer[ \\t]+les[ \\t]+guillemets\\b",
                 "replacement": "\"",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-ouvrir-une-parenthese",
+                "name": "Ouvrir une parenthèse",
+                "trigger": "(?i)\\bouvrir[ \\t]+une[ \\t]+parenthèse\\b[ \\t]*",
+                "replacement": "(",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-fermer-une-parenthese",
+                "name": "Fermer une parenthèse",
+                "trigger": "(?i)[ \\t]*\\bfermer[ \\t]+une[ \\t]+parenthèse\\b",
+                "replacement": ")",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-ouvrir-un-crochet",
+                "name": "Ouvrir un crochet",
+                "trigger": "(?i)\\bouvrir[ \\t]+un[ \\t]+crochet\\b[ \\t]*",
+                "replacement": "[",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-fermer-un-crochet",
+                "name": "Fermer un crochet",
+                "trigger": "(?i)[ \\t]*\\bfermer[ \\t]+un[ \\t]+crochet\\b",
+                "replacement": "]",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-ouvrir-une-accolade",
+                "name": "Ouvrir une accolade",
+                "trigger": "(?i)\\bouvrir[ \\t]+une[ \\t]+accolade\\b[ \\t]*",
+                "replacement": "{",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-fermer-une-accolade",
+                "name": "Fermer une accolade",
+                "trigger": "(?i)[ \\t]*\\bfermer[ \\t]+une[ \\t]+accolade\\b",
+                "replacement": "}",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-saut-de-ligne",
+                "name": "Saut de ligne",
+                "trigger": "(?i)[ \\t]*\\bsaut[ \\t]+de[ \\t]+ligne\\b[ \\t]*",
+                "replacement": "\n",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-nouveau-paragraphe",
+                "name": "Nouveau paragraphe",
+                "trigger": "(?i)[ \\t]*\\bnouveau[ \\t]+paragraphe\\b[ \\t]*",
+                "replacement": "\n\n",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-une-puce",
+                "name": "Insérer une puce",
+                "trigger": "(?i)\\binsérer[ \\t]+une[ \\t]+puce\\b[ \\t]*",
+                "replacement": "• ",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-nouvelle-puce",
+                "name": "Nouvelle puce",
+                "trigger": "(?i)[ \\t]*\\bnouvelle[ \\t]+puce\\b[ \\t]*",
+                "replacement": "\n• ",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-pour-cent",
+                "name": "Insérer un pour cent",
+                "trigger": "(?i)\\binsérer[ \\t]+un[ \\t]+pour[ \\t]*cent\\b",
+                "replacement": "%",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-signe-plus",
+                "name": "Insérer un signe plus",
+                "trigger": "(?i)\\binsérer[ \\t]+un[ \\t]+signe[ \\t]+plus\\b[ \\t]*",
+                "replacement": "+ ",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-signe-moins",
+                "name": "Insérer un signe moins",
+                "trigger": "(?i)\\binsérer[ \\t]+un[ \\t]+signe[ \\t]+moins\\b[ \\t]*",
+                "replacement": "− ",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-signe-egal",
+                "name": "Insérer un signe égal",
+                "trigger": "(?i)\\binsérer[ \\t]+un[ \\t]+signe[ \\t]+égal\\b[ \\t]*",
+                "replacement": "= ",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-signe-fois",
+                "name": "Insérer un signe fois",
+                "trigger": "(?i)\\binsérer[ \\t]+un[ \\t]+signe[ \\t]+fois\\b[ \\t]*",
+                "replacement": "× ",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-une-barre-oblique",
+                "name": "Insérer une barre oblique",
+                "trigger": "(?i)[ \\t]*\\binsérer[ \\t]+une[ \\t]+barre[ \\t]+oblique\\b[ \\t]*",
+                "replacement": "/",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-une-arobase",
+                "name": "Insérer une arobase",
+                "trigger": "(?i)[ \\t]*\\binsérer[ \\t]+une[ \\t]+arobase\\b[ \\t]*",
+                "replacement": "@",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-diese",
+                "name": "Insérer un dièse",
+                "trigger": "(?i)\\binsérer[ \\t]+un[ \\t]+dièse\\b[ \\t]*",
+                "replacement": "#",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-symbole-degre",
+                "name": "Insérer un symbole degré",
+                "trigger": "(?i)[ \\t]*\\binsérer[ \\t]+un[ \\t]+symbole[ \\t]+degré\\b",
+                "replacement": "°",
+                "enabled": true,
+                "match_mode": "regex"
+            },
+            {
+                "id": "hospital-inserer-un-asterisque",
+                "name": "Insérer un astérisque",
+                "trigger": "(?i)\\binsérer[ \\t]+un[ \\t]+astérisque\\b",
+                "replacement": "*",
                 "enabled": true,
                 "match_mode": "regex"
             }
