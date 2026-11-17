@@ -1,18 +1,8 @@
 name: Build Windows hospitalier
-run-name: Build ${{ inputs.installer_format }} - ${{ github.ref_name }}
+run-name: Build setup - ${{ github.ref_name }}
 
 on:
     workflow_dispatch:
-        inputs:
-            installer_format:
-                description: 'setup : tous utilisateurs avec Visual C++ ; msi : sans prérequis ; exe : utilisateur courant'
-                type: choice
-                required: true
-                default: setup
-                options:
-                    - setup
-                    - exe
-                    - msi
 
 permissions:
     contents: read
@@ -31,42 +21,30 @@ jobs:
               with:
                   persist-credentials: false
 
-            - name: Select installer format
-              id: installer
-              env:
-                  REQUESTED_INSTALLER_FORMAT: ${{ inputs.installer_format }}
+            - name: Check application versions
+              shell: python
               run: |
-                  switch -CaseSensitive ($env:REQUESTED_INSTALLER_FORMAT) {
-                      'setup' {
-                          $installerFormat = 'setup'
-                          $bundle = 'msi'
-                          $filePattern = '*.msi'
-                          $installScope = 'perMachine'
-                      }
-                      'exe' {
-                          $installerFormat = 'exe'
-                          $bundle = 'nsis'
-                          $filePattern = '*-setup.exe'
-                          $installScope = 'currentUser'
-                          $config = Get-Content -LiteralPath 'src-tauri/tauri.conf.json' -Raw | ConvertFrom-Json
-                          if ($config.bundle.windows.nsis.installMode -ne 'currentUser') {
-                              throw 'The EXE installer must be configured for the current user.'
-                          }
-                      }
-                      'msi' {
-                          $installerFormat = 'msi'
-                          $bundle = 'msi'
-                          $filePattern = '*.msi'
-                          $installScope = 'perMachine'
-                      }
-                      default {
-                          throw 'Unsupported installer format. Choose setup, exe or msi.'
-                      }
-                  }
-                  "format=$installerFormat" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-                  "bundle=$bundle" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-                  "file_pattern=$filePattern" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-                  "install_scope=$installScope" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  import json
+                  import re
+                  import tomllib
+                  from pathlib import Path
+
+                  package = json.loads(Path('package.json').read_text(encoding='utf-8'))
+                  tauri = json.loads(Path('src-tauri/tauri.conf.json').read_text(encoding='utf-8'))
+                  cargo = tomllib.loads(Path('src-tauri/Cargo.toml').read_text(encoding='utf-8'))
+                  lock = tomllib.loads(Path('src-tauri/Cargo.lock').read_text(encoding='utf-8'))
+                  locked = [p for p in lock['package'] if p['name'] == cargo['package']['name'] and 'source' not in p]
+                  if len(locked) != 1:
+                      raise SystemExit('Expected exactly one application entry in Cargo.lock.')
+                  versions = [package['version'], tauri['version'], cargo['package']['version'], locked[0]['version']]
+                  if len(set(versions)) != 1:
+                      raise SystemExit(f'Application versions are not aligned: {versions}')
+                  if re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', versions[0]) is None:
+                      raise SystemExit('The setup requires a numeric major.minor.patch application version.')
+                  major, minor, patch = map(int, versions[0].split('.'))
+                  if major > 255 or minor > 255 or patch > 65535:
+                      raise SystemExit('The application version exceeds MSI version limits.')
+                  print(f'Application versions aligned: {versions[0]}')
 
             - name: Check Windows packaging scripts
               run: |
@@ -182,54 +160,12 @@ jobs:
                       }
                   }
 
-            - name: Build the unsigned installer
-              env:
-                  TAURI_BUNDLE: ${{ steps.installer.outputs.bundle }}
-              run: pnpm.cmd tauri build --bundles "$env:TAURI_BUNDLE" --ci --no-sign
+            - name: Build the unsigned MSI
+              run: pnpm.cmd tauri build --bundles msi --config packaging/windows/tauri.setup.conf.json --ci --no-sign
 
-            - name: Prepare installer and build metadata
-              env:
-                  TAURI_BUNDLE: ${{ steps.installer.outputs.bundle }}
-                  INSTALLER_FILE_PATTERN: ${{ steps.installer.outputs.file_pattern }}
-                  INSTALLER_FORMAT: ${{ steps.installer.outputs.format }}
-                  INSTALLER_SCOPE: ${{ steps.installer.outputs.install_scope }}
+            - name: Build offline setup with embedded prerequisites
               run: |
-                  $bundleDirectory = Join-Path 'src-tauri/target/release/bundle' $env:TAURI_BUNDLE
-                  $installers = @(Get-ChildItem -LiteralPath $bundleDirectory -Filter $env:INSTALLER_FILE_PATTERN -File -ErrorAction Stop)
-                  if ($installers.Count -ne 1) {
-                      throw 'Expected exactly one installer for the selected format.'
-                  }
-                  $commit = git rev-parse HEAD
-                  if ($LASTEXITCODE -ne 0) {
-                      throw 'The source commit could not be determined.'
-                  }
-                  $version = (Get-Content -LiteralPath 'package.json' -Raw | ConvertFrom-Json).version
-                  $artifactDirectory = 'hospital-windows-artifact'
-                  New-Item -ItemType Directory -Path $artifactDirectory -ErrorAction Stop | Out-Null
-                  $installer = $installers[0]
-                  Copy-Item -LiteralPath $installer.FullName -Destination $artifactDirectory -ErrorAction Stop
-                  $installerHash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-                  "$installerHash  $($installer.Name)" | Set-Content -LiteralPath "$artifactDirectory/SHA256SUMS.txt" -Encoding ascii
-                  $modelArchive = Join-Path $env:RUNNER_TEMP 'murmure-parakeet-1.3.0.zip'
-                  $metadata = [ordered]@{
-                      commit = $commit
-                      source_ref = $env:GITHUB_REF
-                      version = $version
-                      target = 'x86_64-pc-windows-msvc'
-                      installer_format = $env:INSTALLER_FORMAT
-                      install_scope = $env:INSTALLER_SCOPE
-                      model_version = '1.3.0'
-                      model_archive_sha256 = (Get-FileHash -LiteralPath $modelArchive -Algorithm SHA256).Hash.ToLowerInvariant()
-                      installer = $installer.Name
-                      installer_sha256 = $installerHash
-                      signed = $false
-                  }
-                  $metadata | ConvertTo-Json | Set-Content -LiteralPath "$artifactDirectory/build-info.json" -Encoding utf8
-
-            - name: Build complete setup with Visual C++
-              if: ${{ inputs.installer_format == 'setup' }}
-              run: |
-                  $msiFiles = @(Get-ChildItem -LiteralPath 'hospital-windows-artifact' -Filter '*.msi' -File)
+                  $msiFiles = @(Get-ChildItem -LiteralPath 'src-tauri/target/release/bundle/msi' -Filter '*.msi' -File)
                   if ($msiFiles.Count -ne 1) {
                       throw 'Expected exactly one MSI to wrap.'
                   }
@@ -237,34 +173,53 @@ jobs:
                   # GITHUB_RUN_NUMBER stays identical on rerun; RUN_ATTEMPT avoids duplicates.
                   $bundleRevision = ([long]$env:GITHUB_RUN_NUMBER * 100) + [long]$env:GITHUB_RUN_ATTEMPT
                   if ([long]$env:GITHUB_RUN_ATTEMPT -ge 100 -or $bundleRevision -gt 65535) {
-                      throw 'The bundle revision exceeds its range. Bump the application version and review the revision scheme.'
+                      throw 'The bundle revision exceeds its range. Review the revision scheme before publishing another setup.'
                   }
+                  $artifactDirectory = 'hospital-windows-artifact'
+                  New-Item -ItemType Directory -Path $artifactDirectory -ErrorAction Stop | Out-Null
                   & ./packaging/windows/build-bootstrapper.ps1 -MsiPath $msiFiles[0].FullName `
-                      -OutputDirectory (Resolve-Path 'hospital-windows-artifact').Path `
+                      -OutputDirectory (Resolve-Path $artifactDirectory).Path `
                       -BundleRevision $bundleRevision `
                       -WorkingDirectory (Join-Path $env:RUNNER_TEMP "murmure-bootstrapper-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT")
 
+            - name: Prepare build metadata
+              run: |
                   $artifactDirectory = 'hospital-windows-artifact'
                   $setup = Get-Content -LiteralPath "$artifactDirectory/bootstrapper-info.json" -Raw | ConvertFrom-Json
-                  $metadata = Get-Content -LiteralPath "$artifactDirectory/build-info.json" -Raw | ConvertFrom-Json -AsHashtable
-                  $metadata['msi'] = $metadata['installer']
-                  $metadata['msi_sha256'] = $metadata['installer_sha256']
-                  $metadata['installer'] = $setup.setup
-                  $metadata['installer_sha256'] = $setup.setup_sha256
-                  $metadata['bundle_version'] = $setup.bundle_version
-                  $metadata['vc_redist'] = $setup.vc_redist
-                  $metadata['wix_version'] = $setup.wix_version
-                  $metadata['wix_sha256'] = $setup.wix_sha256
+                  $commit = git rev-parse HEAD
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'The source commit could not be determined.'
+                  }
+                  $version = (Get-Content -LiteralPath 'package.json' -Raw | ConvertFrom-Json).version
+                  $modelArchive = Join-Path $env:RUNNER_TEMP 'murmure-parakeet-1.3.0.zip'
+                  $metadata = [ordered]@{
+                      commit = $commit
+                      source_ref = $env:GITHUB_REF
+                      version = $version
+                      target = 'x86_64-pc-windows-msvc'
+                      installer_format = 'setup'
+                      install_scope = 'perMachine'
+                      model_version = '1.3.0'
+                      model_archive_sha256 = (Get-FileHash -LiteralPath $modelArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+                      installer = $setup.setup
+                      installer_sha256 = $setup.setup_sha256
+                      msi = $setup.msi
+                      msi_sha256 = $setup.msi_sha256
+                      bundle_version = $setup.bundle_version
+                      vc_redist = $setup.vc_redist
+                      webview2 = $setup.webview2
+                      wix_version = $setup.wix_version
+                      wix_sha256 = $setup.wix_sha256
+                      signed = $false
+                  }
                   $metadata | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$artifactDirectory/build-info.json" -Encoding utf8
-                  @(
-                      "$($setup.setup_sha256)  $($setup.setup)",
-                      "$($setup.msi_sha256)  $($setup.msi)"
-                  ) | Set-Content -LiteralPath "$artifactDirectory/SHA256SUMS.txt" -Encoding ascii
+                  # The MSI is embedded in the setup, not distributed as a second installer.
+                  "$($setup.setup_sha256)  $($setup.setup)" | Set-Content -LiteralPath "$artifactDirectory/SHA256SUMS.txt" -Encoding ascii
 
             - name: Upload Windows test package
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
               with:
-                  name: murmure-hospital-windows-x64-${{ steps.installer.outputs.format }}-${{ github.sha }}
+                  name: murmure-hospital-windows-x64-setup-${{ github.sha }}
                   path: hospital-windows-artifact/
                   retention-days: 7
                   compression-level: 0

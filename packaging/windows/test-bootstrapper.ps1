@@ -126,6 +126,36 @@ try {
     $database = $installer.OpenDatabase($resolvedMsi, 0)
     Assert-Condition ((Read-MsiProperty -Database $database -Name 'ALLUSERS') -ceq '1') 'The MSI must install for all users (ALLUSERS=1).'
     Assert-Condition ((Read-MsiProperty -Database $database -Name 'ProductVersion') -ceq $ExpectedVersion) 'The MSI application version differs from the expected version.'
+    # Tauri must use the embedded standalone installer, never a network bootstrapper.
+    $standaloneFound = $false
+    $actions = $database.OpenView('SELECT `Action` FROM `CustomAction`')
+    try {
+        [void] $actions.Execute()
+        while ($null -ne ($action = $actions.Fetch())) {
+            try {
+                $name = [string] $action.StringData(1)
+                Assert-Condition ($name -notmatch 'Bootstrapper|UpdateWebView2ViaEdgeUpdate') "Unexpected network installation action in the MSI: $name"
+                if ($name -ceq 'InvokeStandalone') { $standaloneFound = $true }
+            } finally {
+                [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($action)
+            }
+        }
+    } finally {
+        [void] $actions.Close()
+        [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($actions)
+    }
+    Assert-Condition $standaloneFound 'The MSI must install the embedded WebView2 standalone runtime.'
+    $binaryView = $database.OpenView('SELECT `Name` FROM `Binary` WHERE `Name` = ''MicrosoftEdgeWebView2RuntimeInstaller.exe''')
+    $binaryRecord = $null
+    try {
+        [void] $binaryView.Execute()
+        $binaryRecord = $binaryView.Fetch()
+        Assert-Condition ($null -ne $binaryRecord) 'The offline WebView2 installer is missing from the MSI Binary table.'
+    } finally {
+        if ($null -ne $binaryRecord) { [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($binaryRecord) }
+        [void] $binaryView.Close()
+        [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($binaryView)
+    }
     $summary = $database.SummaryInformation(0)
     $architecture = [string] $summary.Property(7)
     Assert-Condition ($architecture.Split(';')[0] -ceq 'x64') 'The MSI must target x64.'
@@ -154,5 +184,5 @@ if ($specified -eq 4) {
         $actualHash = (Get-FileHash -LiteralPath $matches[0].FullName -Algorithm SHA256).Hash
         Assert-Condition ($actualHash -ceq $expectedHash) "The embedded $($payload.Name) differs from its verified source."
     }
-    Write-Host 'Both embedded installer payloads match their source hashes; neither has been executed.'
+    Write-Host 'Both Burn payloads match their source hashes; neither has been executed.'
 }

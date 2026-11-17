@@ -45,9 +45,12 @@ class BootstrapperContracts(unittest.TestCase):
                 self.assertNotRegex(uri.path.lower(), r"(?:^|/)latest(?:/|$)")
         self.assertTrue(self.dependencies["vc_redist"]["url"].endswith("/VC_redist.x64.exe"))
 
-    def test_runtime_is_installed_before_the_application_and_both_are_embedded(self):
+    def test_prerequisites_are_installed_before_the_application_and_all_are_embedded(self):
         chain = self.bundle.find("wix:Chain", NS)
-        self.assertEqual([package.get("Id") for package in chain], ["VcRedistX64", "MurmureMsi"])
+        self.assertEqual(
+            [package.get("Id") for package in chain],
+            ["VcRedistX64", "MurmureMsi"],
+        )
         for package in chain:
             self.assertEqual(package.get("Compressed"), "yes")
             self.assertEqual(package.get("Vital"), "yes")
@@ -55,14 +58,21 @@ class BootstrapperContracts(unittest.TestCase):
         self.assertEqual(chain[0].get("SourceFile"), "$(var.VcRedistPath)")
         self.assertEqual(chain[1].get("SourceFile"), "$(var.MsiPath)")
 
-    def test_shared_runtime_survives_uninstall_and_never_forces_a_restart(self):
-        runtime = self.bundle.find("wix:Chain/wix:ExePackage", NS)
-        self.assertEqual(runtime.get("Permanent"), "yes")
-        self.assertEqual(runtime.get("PerMachine"), "yes")
-        self.assertEqual(runtime.get("InstallCommand"), "/install /quiet /norestart")
-        self.assertIsNone(runtime.get("UninstallCommand"))
-        codes = {code.get("Value"): code.get("Behavior") for code in runtime.findall("wix:ExitCode", NS)}
-        self.assertEqual(codes, {"0": "success", "3010": "scheduleReboot", None: "error"})
+    def test_shared_runtimes_survive_uninstall_and_are_installed_silently(self):
+        commands = {
+            "VcRedistX64": "/install /quiet /norestart",
+        }
+        for runtime in self.bundle.findall("wix:Chain/wix:ExePackage", NS):
+            with self.subTest(runtime=runtime.get("Id")):
+                self.assertEqual(runtime.get("Permanent"), "yes")
+                self.assertEqual(runtime.get("PerMachine"), "yes")
+                self.assertEqual(runtime.get("InstallCommand"), commands[runtime.get("Id")])
+                self.assertIsNone(runtime.get("UninstallCommand"))
+                codes = {
+                    code.get("Value"): code.get("Behavior")
+                    for code in runtime.findall("wix:ExitCode", NS)
+                }
+                self.assertEqual(codes, {"0": "success", "3010": "scheduleReboot", None: "error"})
 
     def test_detection_checks_installed_status_and_numeric_minimum_version_in_machine_x64_registry(self):
         runtime = self.bundle.find("wix:Chain/wix:ExePackage", NS)
@@ -78,6 +88,23 @@ class BootstrapperContracts(unittest.TestCase):
             self.assertEqual(search.get("Key"), r"SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64")
             self.assertEqual(search.get("Value"), value)
 
+    def test_webview2_is_embedded_by_tauri_and_not_managed_by_burn(self):
+        config = json.loads((DIRECTORY / "tauri.setup.conf.json").read_text(encoding="utf-8"))
+        mode = config["bundle"]["windows"]["webviewInstallMode"]
+        self.assertEqual(mode, {"type": "offlineInstaller", "silent": True})
+        self.assertIsNone(self.bundle.find("wix:Chain/wix:ExePackage[@Id='WebView2RuntimeX64']", NS))
+        self.assertIsNone(self.bundle.find("util:RegistrySearch[@Variable='WebView2MachineVersion']", NS))
+        self.assertNotIn("webview2", self.dependencies)
+
+    def test_workflow_builds_only_the_setup_using_the_msi_override(self):
+        workflow = (
+            DIRECTORY.parent.parent / ".github/workflows/build-hospital-windows.yml"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("inputs.installer_format", workflow)
+        self.assertNotRegex(workflow, r"--bundles\s+nsis\b")
+        self.assertRegex(workflow, r"--bundles\s+msi\b")
+        self.assertIn("packaging/windows/tauri.setup.conf.json", workflow)
+
     def test_installer_does_not_launch_murmure_in_the_administrators_profile(self):
         msi = self.bundle.find("wix:Chain/wix:MsiPackage", NS)
         self.assertEqual(msi.get("DisplayInternalUI"), "no")
@@ -85,7 +112,7 @@ class BootstrapperContracts(unittest.TestCase):
 
     def test_bundle_identity_and_version_are_independent_from_the_application_version(self):
         identity = uuid.UUID(self.bundle.get("UpgradeCode"))
-        self.assertNotEqual(identity.int, 0)
+        self.assertEqual(identity, uuid.UUID("7F08032B-ECE6-40F1-8615-864F3EF3684C"))
         self.assertEqual(self.bundle.get("Version"), "$(var.BundleVersion)")
         self.assertEqual(self.bundle.get("Compressed"), "yes")
 

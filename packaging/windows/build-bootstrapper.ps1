@@ -55,6 +55,17 @@ function Get-VerifiedDownload {
     }
 }
 
+function Assert-MicrosoftSignature {
+    param([string] $Path)
+
+    $signature = Get-AuthenticodeSignature -LiteralPath $Path
+    if ($signature.Status -ne 'Valid' -or
+        $null -eq $signature.SignerCertificate -or
+        $signature.SignerCertificate.Subject -notmatch '(^|,\s*)O=Microsoft Corporation(,|$)') {
+        throw "The prerequisite must have a valid Microsoft signature: $([IO.Path]::GetFileName($Path))"
+    }
+}
+
 $wixArchive = Join-Path $work.FullName 'wix.zip'
 Get-VerifiedDownload -Dependency $dependencies.wix -Destination $wixArchive
 $wixDirectory = Join-Path $work.FullName 'wix'
@@ -67,12 +78,7 @@ foreach ($tool in @('candle.exe', 'light.exe', 'dark.exe', 'WixBalExtension.dll'
 
 $vcRedistPath = Join-Path $work.FullName 'VC_redist.x64.exe'
 Get-VerifiedDownload -Dependency $dependencies.vc_redist -Destination $vcRedistPath
-$signature = Get-AuthenticodeSignature -LiteralPath $vcRedistPath
-if ($signature.Status -ne 'Valid' -or
-    $null -eq $signature.SignerCertificate -or
-    $signature.SignerCertificate.Subject -notmatch '(^|,\s*)O=Microsoft Corporation(,|$)') {
-    throw 'The Visual C++ redistributable must have a valid Microsoft signature.'
-}
+Assert-MicrosoftSignature -Path $vcRedistPath
 $vcVersion = [version] (Get-Item -LiteralPath $vcRedistPath).VersionInfo.FileVersion
 if ($vcVersion -ne [version] $dependencies.vc_redist.version) {
     throw 'The Visual C++ redistributable version differs from the pinned version.'
@@ -116,7 +122,7 @@ $definitions = @(
 )
 & (Join-Path $wixDirectory 'candle.exe') -nologo -arch x64 @extensions @definitions -out $objectPath (Join-Path $PSScriptRoot 'bootstrapper.wxs')
 if ($LASTEXITCODE -ne 0) { throw 'WiX could not compile the bootstrapper.' }
-& (Join-Path $wixDirectory 'light.exe') -nologo @extensions -out $setupPath $objectPath
+& (Join-Path $wixDirectory 'light.exe') -nologo @extensions -pdbout (Join-Path $work.FullName 'bootstrapper.wixpdb') -out $setupPath $objectPath
 if ($LASTEXITCODE -ne 0) { throw 'WiX could not link the bootstrapper.' }
 
 # Extract, never execute, the generated setup and check its actual embedded payloads.
@@ -136,6 +142,11 @@ $metadata = [ordered]@{
         url = $dependencies.vc_redist.url
         sha256 = $dependencies.vc_redist.sha256
         microsoft_signature_verified = $true
+    }
+    webview2 = [ordered]@{
+        managed_by = 'tauri'
+        install_mode = 'offlineInstaller'
+        embedded_in = 'msi'
     }
     wix_version = $dependencies.wix.version
     wix_sha256 = $dependencies.wix.sha256
