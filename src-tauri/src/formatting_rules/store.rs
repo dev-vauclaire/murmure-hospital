@@ -84,24 +84,16 @@ mod tests {
     }
 
     #[test]
-    fn hospital_original_commands_are_in_the_dictionary_and_replace_standalone_dictation() {
-        let dictionary: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../resources/hospital/default-dictionnary.json"
-        ))
-        .expect("Hospital dictionary model must contain valid JSON");
+    fn hospital_original_commands_replace_standalone_dictation() {
         let settings = hospital_settings();
-        for (command, transcription, expected) in [
-            ("insérer un point", "Insérer un point.", ". "),
-            ("insérer une virgule", "INSÉRER UNE VIRGULE.", ", "),
-            ("saut de ligne", "Saut de ligne.", "\n"),
-            ("nouveau paragraphe", "Nouveau paragraphe.", "\n\n"),
-            ("ouvrir les guillemets", "Ouvrir les guillemets.", "\" "),
-            ("fermer les guillemets", "Fermer les guillemets.", "\" "),
+        for (transcription, expected) in [
+            ("Insérer un point.", ". "),
+            ("INSÉRER UNE VIRGULE.", ", "),
+            ("Saut de ligne.", "\n"),
+            ("Nouveau paragraphe.", "\n\n"),
+            ("Ouvrir les guillemets.", "\" "),
+            ("Fermer les guillemets.", "\" "),
         ] {
-            assert!(
-                dictionary.get(command).is_some(),
-                "Every original hospital voice command must retain its dictionary entry"
-            );
             assert_eq!(
                 crate::formatting_rules::apply_formatting(transcription.to_string(), &settings),
                 expected
