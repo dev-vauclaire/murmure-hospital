@@ -5,6 +5,9 @@
             "webviewInstallMode": {
                 "type": "offlineInstaller",
                 "silent": true
+            },
+            "wix": {
+                "template": "target/hospital-installer/main.wxs"
             }
         }
     }

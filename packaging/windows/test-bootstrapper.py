@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+import re
 import unittest
 from urllib.parse import urlsplit
 import uuid
@@ -12,6 +13,9 @@ DIRECTORY = Path(__file__).resolve().parent
 NS = {
     "wix": "http://schemas.microsoft.com/wix/2006/wi",
     "util": "http://schemas.microsoft.com/wix/UtilExtension",
+    "bal": "http://schemas.microsoft.com/wix/BalExtension",
+    "theme": "http://wixtoolset.org/schemas/thmutil/2010",
+    "loc": "http://schemas.microsoft.com/wix/2006/localization",
 }
 
 
@@ -109,6 +113,54 @@ class BootstrapperContracts(unittest.TestCase):
         msi = self.bundle.find("wix:Chain/wix:MsiPackage", NS)
         self.assertEqual(msi.get("DisplayInternalUI"), "no")
         self.assertNotIn("AUTOLAUNCHAPP", ET.tostring(self.root, encoding="unicode"))
+
+    def test_install_page_checkboxes_bind_to_numeric_defaults_forwarded_to_the_msi(self):
+        theme = ET.parse(DIRECTORY / "bootstrapper-theme.xml").getroot()
+        page = theme.find("theme:Page[@Name='Install']", NS)
+        msi = self.bundle.find("wix:Chain/wix:MsiPackage", NS)
+        for name, default in (("HOSPITAL_DESKTOP_SHORTCUT", "1"), ("HOSPITAL_START_WITH_WINDOWS", "0")):
+            with self.subTest(option=name):
+                variable = self.bundle.find(f"wix:Variable[@Name='{name}']", NS)
+                self.assertEqual(variable.get("Type"), "numeric")
+                self.assertEqual(variable.get("Value"), default)
+                self.assertIsNotNone(page.find(f"theme:Checkbox[@Name='{name}']", NS))
+                self.assertEqual(len(theme.findall(f".//theme:Checkbox[@Name='{name}']", NS)), 1)
+                prop = msi.find(f"wix:MsiProperty[@Name='{name}']", NS)
+                self.assertEqual(prop.get("Value"), f"[{name}]")
+
+    def test_missing_registry_values_preserve_defaults_and_saved_choices_override_them(self):
+        searches = {item.get("Id"): item for item in self.bundle.findall("util:RegistrySearch", NS)}
+        for identifier, variable, value in (
+            ("HospitalDesktopChoice", "HOSPITAL_DESKTOP_SHORTCUT", "DesktopShortcut"),
+            ("HospitalStartupChoice", "HOSPITAL_START_WITH_WINDOWS", "StartWithWindows"),
+        ):
+            with self.subTest(option=variable):
+                read = searches[identifier]
+                exists = searches[read.get("After")]
+                self.assertEqual(exists.get("Result"), "exists")
+                self.assertEqual(read.get("Condition"), exists.get("Variable"))
+                self.assertEqual(read.get("Variable"), variable)
+                self.assertEqual(read.get("Result"), "value")
+                self.assertEqual(read.get("Format"), "raw")
+                for search in (exists, read):
+                    self.assertEqual(search.get("Root"), "HKLM")
+                    self.assertEqual(search.get("Win64"), "yes")
+                    self.assertEqual(search.get("Key"), r"Software\Vauclaire\Murmure\Installer")
+                    self.assertEqual(search.get("Value"), value)
+
+    def test_custom_theme_is_used_and_all_its_french_labels_resolve(self):
+        application = self.bundle.find("wix:BootstrapperApplicationRef/bal:WixStandardBootstrapperApplication", NS)
+        self.assertEqual(application.get("ThemeFile"), "$(var.ThemePath)")
+        self.assertEqual(application.get("LocalizationFile"), "$(var.LocalizationPath)")
+        self.assertEqual(application.get("LogoFile"), "$(var.LogoPath)")
+        theme = (DIRECTORY / "bootstrapper-theme.xml").read_text(encoding="utf-8")
+        localization = ET.parse(DIRECTORY / "bootstrapper-theme.fr-fr.wxl").getroot()
+        self.assertEqual(localization.get("Culture"), "fr-fr")
+        strings = {item.get("Id"): item.text for item in localization.findall("loc:String", NS)}
+        self.assertFalse(set(re.findall(r"#\(loc\.([A-Za-z0-9_]+)\)", theme)) - strings.keys())
+        self.assertIn("tous les utilisateurs", strings["HospitalOptionsScope"])
+        self.assertTrue((DIRECTORY.parent.parent / "src/assets/app-icon.png").is_file())
+        self.assertTrue((DIRECTORY.parent.parent / "licenses/wix3-MS-RL.txt").is_file())
 
     def test_bundle_identity_and_version_are_independent_from_the_application_version(self):
         identity = uuid.UUID(self.bundle.get("UpgradeCode"))

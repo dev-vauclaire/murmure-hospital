@@ -118,6 +118,9 @@ $definitions = @(
     "-dVcRedistPath=$vcRedistPath",
     "-dMsiPath=$resolvedMsi",
     "-dIconPath=$(Join-Path $repositoryRoot 'src-tauri/icons/icon.ico')",
+    "-dThemePath=$(Join-Path $PSScriptRoot 'bootstrapper-theme.xml')",
+    "-dLocalizationPath=$(Join-Path $PSScriptRoot 'bootstrapper-theme.fr-fr.wxl')",
+    "-dLogoPath=$(Join-Path $repositoryRoot 'src/assets/app-icon.png')",
     "-dLicensePath=$licensePath"
 )
 & (Join-Path $wixDirectory 'candle.exe') -nologo -arch x64 @extensions @definitions -out $objectPath (Join-Path $PSScriptRoot 'bootstrapper.wxs')

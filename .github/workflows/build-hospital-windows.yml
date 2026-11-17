@@ -48,6 +48,10 @@ jobs:
 
             - name: Check Windows packaging scripts
               run: |
+                  python packaging/windows/test-installer-options.py
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'MSI installer option checks failed.'
+                  }
                   python packaging/windows/test-bootstrapper.py
                   if ($LASTEXITCODE -ne 0) {
                       throw 'Windows packaging checks failed.'
@@ -126,6 +130,13 @@ jobs:
 
             - name: Install frontend dependencies
               run: pnpm.cmd install --frozen-lockfile --ignore-scripts
+
+            - name: Prepare the verified MSI option template
+              run: |
+                  python packaging/windows/prepare-installer-options.py
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'MSI installer option template preparation failed.'
+                  }
 
             - name: Test hospital rule presentation
               run: pnpm.cmd test:hospital-rules

@@ -11,9 +11,35 @@
             IconSourceFile="$(var.IconPath)">
         <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.RtfLicense">
             <bal:WixStandardBootstrapperApplication LicenseFile="$(var.LicensePath)"
+                                                    ThemeFile="$(var.ThemePath)"
+                                                    LocalizationFile="$(var.LocalizationPath)"
+                                                    LogoFile="$(var.LogoPath)"
                                                     SuppressOptionsUI="yes"
                                                     ShowVersion="yes" />
         </BootstrapperApplicationRef>
+
+        <Variable Name="HOSPITAL_DESKTOP_SHORTCUT" Type="numeric" Value="1" />
+        <Variable Name="HOSPITAL_START_WITH_WINDOWS" Type="numeric" Value="0" />
+        <!-- A missing value search clears its variable in Burn v3. Check existence
+             first to preserve the defaults on the first installation. -->
+        <util:RegistrySearch Id="HospitalDesktopChoiceExists"
+                             Variable="HOSPITAL_DESKTOP_SHORTCUT_EXISTS"
+                             Root="HKLM" Key="Software\Vauclaire\Murmure\Installer"
+                             Value="DesktopShortcut" Win64="yes" Result="exists" />
+        <util:RegistrySearch Id="HospitalDesktopChoice"
+                             Variable="HOSPITAL_DESKTOP_SHORTCUT"
+                             Root="HKLM" Key="Software\Vauclaire\Murmure\Installer"
+                             Value="DesktopShortcut" Win64="yes" Result="value" Format="raw"
+                             After="HospitalDesktopChoiceExists" Condition="HOSPITAL_DESKTOP_SHORTCUT_EXISTS" />
+        <util:RegistrySearch Id="HospitalStartupChoiceExists"
+                             Variable="HOSPITAL_START_WITH_WINDOWS_EXISTS"
+                             Root="HKLM" Key="Software\Vauclaire\Murmure\Installer"
+                             Value="StartWithWindows" Win64="yes" Result="exists" />
+        <util:RegistrySearch Id="HospitalStartupChoice"
+                             Variable="HOSPITAL_START_WITH_WINDOWS"
+                             Root="HKLM" Key="Software\Vauclaire\Murmure\Installer"
+                             Value="StartWithWindows" Win64="yes" Result="value" Format="raw"
+                             After="HospitalStartupChoiceExists" Condition="HOSPITAL_START_WITH_WINDOWS_EXISTS" />
 
         <util:RegistrySearch Id="VcRuntimeInstalledSearch"
                              Variable="VcRuntimeX64Installed"
@@ -53,7 +79,10 @@
                         Name="Murmure.msi"
                         DisplayInternalUI="no"
                         Vital="yes"
-                        Compressed="yes" />
+                        Compressed="yes">
+                <MsiProperty Name="HOSPITAL_DESKTOP_SHORTCUT" Value="[HOSPITAL_DESKTOP_SHORTCUT]" />
+                <MsiProperty Name="HOSPITAL_START_WITH_WINDOWS" Value="[HOSPITAL_START_WITH_WINDOWS]" />
+            </MsiPackage>
         </Chain>
     </Bundle>
 </Wix>
