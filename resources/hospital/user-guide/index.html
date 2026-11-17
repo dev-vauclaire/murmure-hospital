@@ -1,0 +1,1105 @@
+<!doctype html>
+<html lang="fr">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="referrer" content="no-referrer" />
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'none'; img-src 'self' file:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+        />
+        <title>Guide d’utilisation — Murmure</title>
+        <style>
+            :root {
+                color-scheme: light;
+                --ink: #172333;
+                --muted: #526274;
+                --accent: #006580;
+                --line: #d8e0e7;
+                --soft: #edf6f9;
+            }
+            * {
+                box-sizing: border-box;
+            }
+            html {
+                scroll-behavior: auto;
+            }
+            body {
+                margin: 0;
+                background: #fff;
+                color: var(--ink);
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 18px;
+                line-height: 1.65;
+            }
+            a {
+                color: var(--accent);
+                text-decoration-thickness: 0.08em;
+                text-underline-offset: 0.15em;
+            }
+            a:hover {
+                text-decoration-thickness: 0.14em;
+            }
+            a:focus-visible {
+                outline: 3px solid #c76b00;
+                outline-offset: 4px;
+                border-radius: 2px;
+            }
+            .skip-link {
+                position: absolute;
+                top: -6rem;
+                left: 1rem;
+                padding: 0.7rem 1rem;
+                background: #fff;
+                border: 2px solid var(--accent);
+                z-index: 10;
+            }
+            .skip-link:focus {
+                top: 1rem;
+            }
+            .hero,
+            .guide-layout {
+                width: min(1440px, 100%);
+                margin-inline: auto;
+                padding-inline: clamp(20px, 4vw, 64px);
+            }
+            .hero {
+                padding-block: 48px 20px;
+            }
+            .hero-heading {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 24px;
+            }
+            .guide-logo {
+                width: 128px;
+                height: 128px;
+                flex-shrink: 0;
+                object-fit: contain;
+            }
+            h1 {
+                max-width: 24ch;
+                margin: 0 0 12px;
+                font-size: clamp(2rem, 4vw, 3.1rem);
+                line-height: 1.12;
+                letter-spacing: -0.025em;
+            }
+            .subtitle {
+                margin: 18px 0;
+                color: var(--accent);
+                font-size: 1.3rem;
+                font-weight: 600;
+            }
+            .introduction {
+                max-width: 1000px;
+            }
+            .guide-layout {
+                display: grid;
+                grid-template-columns: 265px minmax(0, 1fr);
+                gap: 40px;
+                padding-block: 16px 64px;
+                align-items: start;
+            }
+            .summary {
+                position: sticky;
+                top: 20px;
+                padding: 24px 22px;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: #f8fafb;
+                max-height: calc(100vh - 40px);
+                overflow-y: auto;
+            }
+            .summary h2 {
+                margin: 0 0 14px;
+                font-size: 1.3rem;
+            }
+            .summary ol,
+            .summary ul {
+                margin: 0;
+                padding-left: 1.2rem;
+            }
+            .summary li {
+                margin: 0 0 0.65rem;
+                padding-left: 0.12rem;
+                font-size: 0.94rem;
+                line-height: 1.45;
+            }
+            .summary a {
+                display: inline-block;
+            }
+            .summary .optional-label {
+                margin: 22px 0 10px;
+                padding-top: 18px;
+                border-top: 1px solid var(--line);
+                font-size: 0.9rem;
+                font-weight: 700;
+            }
+            main {
+                min-width: 0;
+            }
+            section {
+                scroll-margin-top: 24px;
+                padding-block: 20px 32px;
+                border-bottom: 1px solid var(--line);
+            }
+            section:first-child {
+                padding-top: 0;
+            }
+            h2 {
+                margin: 0 0 22px;
+                font-size: clamp(1.6rem, 2.6vw, 2rem);
+                line-height: 1.25;
+            }
+            h3 {
+                margin: 30px 0 12px;
+                font-size: 1.25rem;
+                line-height: 1.4;
+            }
+            p {
+                margin: 0 0 18px;
+            }
+            strong {
+                font-weight: 700;
+            }
+            .steps {
+                margin: 16px 0 24px;
+                padding-left: 1.75rem;
+            }
+            .steps li {
+                margin: 0 0 12px;
+                padding-left: 0.35rem;
+            }
+            .steps li::marker {
+                color: var(--accent);
+                font-weight: 700;
+            }
+            .note {
+                margin: 24px 0;
+                padding: 18px 22px;
+                border-left: 5px solid var(--accent);
+                background: var(--soft);
+                border-radius: 0 6px 6px 0;
+            }
+            .note p:last-child {
+                margin-bottom: 0;
+            }
+            .note-title {
+                margin-bottom: 6px;
+                font-weight: 700;
+            }
+            .screenshot {
+                margin: 20px 0 28px;
+            }
+            .screenshot img {
+                display: block;
+                max-width: 100%;
+                width: auto;
+                height: auto;
+                border: 1px solid #bdc8d1;
+                border-radius: 5px;
+            }
+            .screenshot figcaption,
+            .caption {
+                margin-top: 10px;
+                color: var(--muted);
+                font-size: 0.92rem;
+                line-height: 1.5;
+            }
+            .figure-compact img {
+                max-width: min(100%, 440px);
+            }
+            .table-scroll {
+                margin: 24px 0;
+                overflow-x: auto;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 1rem;
+            }
+            th,
+            td {
+                padding: 13px 15px;
+                text-align: left;
+                vertical-align: top;
+                border: 1px solid var(--line);
+            }
+            th {
+                background: var(--soft);
+                font-weight: 700;
+            }
+            tbody tr:nth-child(even) {
+                background: #f8fafb;
+            }
+            @media (max-width: 1000px) {
+                .guide-layout {
+                    grid-template-columns: 1fr;
+                    gap: 32px;
+                }
+                .summary {
+                    position: static;
+                    max-height: none;
+                }
+            }
+            @media (max-width: 560px) {
+                body {
+                    font-size: 17px;
+                }
+                .hero {
+                    padding-top: 30px;
+                }
+                .hero-heading {
+                    flex-direction: column-reverse;
+                    align-items: flex-start;
+                    gap: 16px;
+                }
+                .guide-logo {
+                    width: 96px;
+                    height: 96px;
+                }
+                .summary {
+                    padding: 20px;
+                }
+                .note {
+                    padding: 15px 17px;
+                }
+                th,
+                td {
+                    padding: 10px 12px;
+                }
+            }
+            @media print {
+                @page {
+                    size: A4;
+                    margin: 16mm;
+                }
+                body {
+                    font-size: 11pt;
+                    line-height: 1.45;
+                }
+                .hero,
+                .guide-layout {
+                    display: block;
+                    width: auto;
+                    margin: 0;
+                    padding: 0;
+                }
+                .hero-heading {
+                    flex-direction: row;
+                    align-items: center;
+                }
+                .guide-logo {
+                    width: 90px;
+                    height: 90px;
+                }
+                .summary {
+                    position: static;
+                    max-height: none;
+                    overflow: visible;
+                    background: #fff;
+                    margin: 18pt 0;
+                    break-after: page;
+                }
+                .summary li {
+                    font-size: 10pt;
+                }
+                h1 {
+                    font-size: 26pt;
+                }
+                h2 {
+                    font-size: 19pt;
+                    break-after: avoid;
+                }
+                h3 {
+                    font-size: 13pt;
+                    break-after: avoid;
+                }
+                section {
+                    padding: 14pt 0;
+                }
+                a {
+                    color: inherit;
+                    text-decoration: none;
+                }
+                .skip-link {
+                    display: none;
+                }
+                .note,
+                figure,
+                tr {
+                    break-inside: avoid;
+                }
+                .note {
+                    padding: 10pt 12pt;
+                }
+                .screenshot {
+                    margin: 12pt 0 18pt;
+                }
+                .screenshot img {
+                    max-height: 155mm;
+                    max-width: 100%;
+                    object-fit: contain;
+                    object-position: left;
+                }
+                .screenshot figcaption {
+                    font-size: 9pt;
+                }
+                .table-scroll {
+                    overflow: visible;
+                }
+                th,
+                td {
+                    padding: 7pt 9pt;
+                }
+                * {
+                    print-color-adjust: exact;
+                    -webkit-print-color-adjust: exact;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <a class="skip-link" href="#guide">Aller au guide</a>
+        <header class="hero">
+            <div class="hero-heading">
+                <h1>Murmure<br />Guide d’utilisation</h1>
+                <img class="guide-logo" src="logo-vauclaire.png" alt="Vauclaire" width="128" height="128" />
+            </div>
+            <p class="subtitle">Dicter du texte dans vos applications</p>
+            <div class="introduction">
+                <p>
+                    Ce guide vous accompagne pour dicter avec un microphone et le clavier. Murmure doit être installé
+                    sur votre poste.
+                </p>
+                <aside class="note">
+                    <p class="note-title">Comment suivre ce guide</p>
+                    <p>
+                        Les encadrés jaunes dans les images indiquent où cliquer. Les numéros permettent de retrouver
+                        les étapes. Commencez par <a href="#choisir-microphone">« Choisir son microphone »</a> puis
+                        <a href="#premiere-dictee">« Faire sa première dictée »</a>.
+                    </p>
+                </aside>
+                <p>
+                    La partie consacrée au SpeechMike est facultative elle ne vous concerne pas si vous ne disposez pas
+                    du microphone
+                </p>
+            </div>
+        </header>
+        <div class="guide-layout">
+            <nav class="summary" id="sommaire" aria-labelledby="titre-sommaire">
+                <h2 id="titre-sommaire">Sommaire</h2>
+                <ol>
+                    <li><a href="#choisir-microphone">Choisir son microphone</a></li>
+                    <li><a href="#premiere-dictee">Faire sa première dictée</a></li>
+                    <li><a href="#personnaliser-touches">Personnaliser les touches du clavier</a></li>
+                    <li><a href="#commandes-vocales">Commande vocale</a></li>
+                    <li><a href="#dictionnaire">Enrichir le dictionnaire</a></li>
+                    <li><a href="#convertir-nombres">Convertir les nombres en chiffres</a></li>
+                    <li><a href="#retrouver-texte">Retrouver un texte et masquer la fenêtre</a></li>
+                    <li><a href="#depannage">Problème courant</a></li>
+                </ol>
+                <p class="optional-label">Si vous disposez d’un SpeechMike</p>
+                <ul>
+                    <li><a href="#speechmike-selection">Si vous disposez d’un SpeechMike : le sélectionner</a></li>
+                    <li><a href="#speechmike-boutons">Si vous disposez d’un SpeechMike : utiliser ses boutons</a></li>
+                </ul>
+            </nav>
+            <main id="guide">
+                <section id="choisir-microphone" aria-labelledby="titre-choisir-microphone">
+                    <h2 id="titre-choisir-microphone">1. Choisir son microphone</h2>
+                    <p>
+                        Pour ouvrir Murmure, appuyez sur la touche Windows du clavier, tapez « Murmure », puis appuyez
+                        sur Entrée.
+                    </p>
+                    <p>Dans le menu de gauche, cliquez sur Système (1).</p>
+                    <figure class="screenshot figure-compact">
+                        <img
+                            src="images/navigation-systeme.png"
+                            width="413"
+                            height="100"
+                            alt="1 — Ouvrir Système dans le menu de gauche."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>1 — Ouvrir Système dans le menu de gauche.</figcaption>
+                    </figure>
+                    <p>
+                        Ouvrez la liste des microphones (2), puis cliquez sur celui que vous utilisez (3). Son nom peut
+                        être différent de celui de l’exemple.
+                    </p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/microphone-clavier.png"
+                            width="1280"
+                            height="368"
+                            alt="2 — Ouvrir la liste. 3 — Sélectionner le microphone."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>2 — Ouvrir la liste. 3 — Sélectionner le microphone.</figcaption>
+                    </figure>
+                    <p>
+                        Dans Mode d’enregistrement, ouvrez la liste (4) et choisissez « Appuyer pour démarrer/arrêter »
+                        (5) pour le premier essai.
+                    </p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/modes-enregistrement.png"
+                            width="1280"
+                            height="352"
+                            alt="4 — Ouvrir la liste. 5 — Appuyer pour démarrer/arrêter. 6 — Appuyer pour parler."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            4 — Ouvrir la liste. 5 — Appuyer pour démarrer/arrêter. 6 — Appuyer pour parler.
+                        </figcaption>
+                    </figure>
+                    <aside class="note">
+                        <p class="note-title">Le mode choisi compte</p>
+                        <p>
+                            Avec « Appuyer pour démarrer/arrêter », appuyez deux fois : une fois au début, une fois à la
+                            fin. Avec « Appuyer pour parler », maintenez la touche pendant toute la dictée.
+                        </p>
+                    </aside>
+                </section>
+                <section id="premiere-dictee" aria-labelledby="titre-premiere-dictee">
+                    <h2 id="titre-premiere-dictee">2. Faire sa première dictée</h2>
+                    <p>
+                        Laissez Murmure ouvert. Ouvrez ensuite l’application dans laquelle vous souhaitez écrire : un
+                        document, un courriel ou une autre zone de texte.
+                    </p>
+                    <p>
+                        Cliquez dans la zone où le texte doit apparaître (1). Une petite barre verticale, appelée
+                        curseur, indique l’endroit où le texte sera écrit.
+                    </p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/champ-destination.png"
+                            width="1540"
+                            height="694"
+                            alt="1 — Exemple de zone de saisie à sélectionner avant de dicter. L’apparence dépend de votre logiciel."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            1 — Exemple de zone de saisie à sélectionner avant de dicter. L’apparence dépend de votre
+                            logiciel.
+                        </figcaption>
+                    </figure>
+                    <h3>Essayez avec une phrase simple</h3>
+                    <p>
+                        Les étapes suivantes utilisent F9, la touche initiale. Si vous l’avez modifiée, utilisez la
+                        touche affichée dans Système.
+                    </p>
+                    <ol class="steps">
+                        <li>Appuyez une fois sur F9 pour démarrer l’enregistrement.</li>
+                        <li>Dites : « Ceci est un essai de dictée ».</li>
+                        <li>Appuyez à nouveau sur F9 pour terminer.</li>
+                        <li>Attendez que le texte apparaisse, puis relisez-le.</li>
+                    </ol>
+                    <aside class="note">
+                        <p class="note-title">Le résultat attendu</p>
+                        <p>Ceci est un essai de dictée.</p>
+                    </aside>
+                    <aside class="note">
+                        <p class="note-title">À retenir</p>
+                        <p>Gardez la bonne zone de saisie sélectionnée jusqu’à l’apparition du texte.</p>
+                    </aside>
+                </section>
+                <section id="personnaliser-touches" aria-labelledby="titre-personnaliser-touches">
+                    <h2 id="titre-personnaliser-touches">3. Personnaliser les touches du clavier</h2>
+                    <p>Cliquez sur Système dans le menu de gauche.</p>
+                    <figure class="screenshot figure-compact">
+                        <img
+                            src="images/navigation-systeme.png"
+                            width="413"
+                            height="100"
+                            alt="Ouvrir Système."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>Ouvrir Système.</figcaption>
+                    </figure>
+                    <p>
+                        Cliquez dans la zone de la commande à modifier : dictée (1), collage de la dernière
+                        transcription (2) ou annulation de l’enregistrement (3).
+                    </p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/raccourcis-clavier.png"
+                            width="1265"
+                            height="404"
+                            alt="1 — Dictée. 2 — Coller le dernier texte. 3 — Annuler l’enregistrement en cours."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            1 — Dictée. 2 — Coller le dernier texte. 3 — Annuler l’enregistrement en cours.
+                        </figcaption>
+                    </figure>
+                    <ol class="steps">
+                        <li>Appuyez sur la touche ou la combinaison que vous souhaitez utiliser.</li>
+                        <li>Validez avec Entrée. Pour abandonner la modification, appuyez sur Échap.</li>
+                        <li>Testez votre nouvelle commande dans un document d’essai.</li>
+                    </ol>
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col"><strong>Commande</strong></th>
+                                    <th scope="col"><strong>À quoi sert-elle ?</strong></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Raccourci de dictée</td>
+                                    <td>
+                                        Démarrer et terminer la dictée selon le mode choisi. F9 est la valeur initiale.
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Coller la dernière transcription</td>
+                                    <td>Réinsérer le dernier texte reconnu dans la zone où se trouve le curseur.</td>
+                                </tr>
+                                <tr>
+                                    <td>Annuler l’enregistrement</td>
+                                    <td>Abandonner l’enregistrement en cours sans insérer son contenu.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <aside class="note">
+                        <p class="note-title">« Non assigné »</p>
+                        <p>
+                            Aucune touche n’est encore définie pour cette commande. Le collage et l’annulation sont non
+                            assignés au départ. Annuler n’efface pas un texte déjà inséré dans votre document.
+                        </p>
+                    </aside>
+                </section>
+                <section id="commandes-vocales" aria-labelledby="titre-commandes-vocales">
+                    <h2 id="titre-commandes-vocales">4. Commande vocale</h2>
+                    <p>
+                        Une commande vocale permet de remplacer une expression dictée par un signe ou un texte. Des
+                        commandes sont fournies par défaut ; vous pouvez également créer les vôtres.
+                    </p>
+                    <section id="dicter-ponctuation" aria-labelledby="titre-dicter-ponctuation">
+                        <h3 id="titre-dicter-ponctuation">Dicter la ponctuation : les commandes par défaut</h3>
+                        <p>
+                            Pendant votre dictée, prononcez les expressions ci-dessous. Les commandes fournies les
+                            remplacent par la ponctuation correspondante.
+                        </p>
+                        <div class="table-scroll">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th scope="col"><strong>Dites…</strong></th>
+                                        <th scope="col"><strong>Pour obtenir…</strong></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>insérer un point</td>
+                                        <td>.</td>
+                                    </tr>
+                                    <tr>
+                                        <td>insérer une virgule</td>
+                                        <td>,</td>
+                                    </tr>
+                                    <tr>
+                                        <td>saut de ligne</td>
+                                        <td>Un retour à la ligne</td>
+                                    </tr>
+                                    <tr>
+                                        <td>nouveau paragraphe</td>
+                                        <td>Une ligne vide entre deux paragraphes</td>
+                                    </tr>
+                                    <tr>
+                                        <td>ouvrir les guillemets</td>
+                                        <td>Un guillemet : &quot;</td>
+                                    </tr>
+                                    <tr>
+                                        <td>fermer les guillemets</td>
+                                        <td>Un guillemet : &quot;</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <h4>Un exercice simple</h4>
+                        <aside class="note">
+                            <p class="note-title">Ce que vous prononcez</p>
+                            <p>Première ligne insérer un point saut de ligne Deuxième ligne insérer un point</p>
+                        </aside>
+                        <aside class="note">
+                            <p class="note-title">Le résultat à vérifier</p>
+                            <p>Première ligne.<br />Deuxième ligne.</p>
+                        </aside>
+                        <p>
+                            Vérifiez le point et le passage à la ligne. Les majuscules peuvent varier : corrigez-les si
+                            nécessaire.
+                        </p>
+                        <aside class="note">
+                            <p class="note-title">Si une expression reste écrite</p>
+                            <p>
+                                Utilisez l’expression exacte du tableau. Les règles de ponctuation doivent être
+                                présentes et activées.
+                            </p>
+                        </aside>
+                    </section>
+                    <h3 id="titre-creer-commande-vocale">Créer une commande vocale</h3>
+                    <p>Dans le menu de gauche, cliquez sur Règles personnalisées (1), sous Personnaliser.</p>
+                    <figure class="screenshot figure-compact">
+                        <img
+                            src="images/navigation-regles.png"
+                            width="339"
+                            height="94"
+                            alt="1 — Ouvrir les règles personnalisées."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>1 — Ouvrir les règles personnalisées.</figcaption>
+                    </figure>
+                    <p>
+                        Faites défiler la page vers le bas avec la molette de la souris, jusqu’à « Ajouter une règle
+                        personnalisée ». Cliquez dans le premier champ (2) et saisissez « formule de fin ». Cliquez dans
+                        le second (3) et saisissez « Bonne journée. ».
+                    </p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/regle-personnalisee-ajouter.png"
+                            width="1269"
+                            height="649"
+                            alt="2 — Expression dictée. 3 — Texte à écrire. 4 — Mode Smart. 5 — Ajouter la règle."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            2 — Expression dictée. 3 — Texte à écrire. 4 — Mode Smart. 5 — Ajouter la règle.
+                        </figcaption>
+                    </figure>
+                    <p>
+                        Conservez Smart (4), puis cliquez sur Ajouter la règle (5). Dans un document d’essai, dictez «
+                        formule de fin » et vérifiez le résultat.
+                    </p>
+                    <aside class="note">
+                        <p class="note-title">Pour une règle simple</p>
+                        <p>
+                            Utilisez Smart. Conservez les règles de ponctuation déjà fournies. Les changements sont
+                            enregistrés automatiquement.
+                        </p>
+                    </aside>
+                </section>
+                <section id="dictionnaire" aria-labelledby="titre-dictionnaire">
+                    <h2 id="titre-dictionnaire">5. Enrichir le dictionnaire</h2>
+                    <p>Dans le menu de gauche, cliquez sur Dictionnaire (1), sous Personnaliser.</p>
+                    <figure class="screenshot figure-compact">
+                        <img
+                            src="images/navigation-dictionnaire.png"
+                            width="339"
+                            height="94"
+                            alt="1 — Ouvrir le dictionnaire."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>1 — Ouvrir le dictionnaire.</figcaption>
+                    </figure>
+                    <p>
+                        Cliquez dans le champ de saisie (2), puis écrivez le mot avec la bonne orthographe. Exemple : «
+                        ergothérapie ». Cliquez sur Ajouter (3).
+                    </p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/dictionnaire-ajouter.png"
+                            width="1259"
+                            height="109"
+                            alt="2 — Saisir le mot. 3 — L’ajouter au dictionnaire."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>2 — Saisir le mot. 3 — L’ajouter au dictionnaire.</figcaption>
+                    </figure>
+                    <p>
+                        Le mot apparaît dans la liste. Faites une nouvelle dictée d’essai pour vérifier sa
+                        reconnaissance.
+                    </p>
+                    <h3>Corriger un mot mal écrit</h3>
+                    <p>
+                        Cliquez sur la petite croix à droite du mot à supprimer (4), puis ajoutez sa bonne orthographe
+                        avec le champ et le bouton montrés ci-dessus.
+                    </p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/dictionnaire-supprimer.png"
+                            width="1293"
+                            height="283"
+                            alt="4 — Cliquer sur la croix pour retirer cette entrée."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>4 — Cliquer sur la croix pour retirer cette entrée.</figcaption>
+                    </figure>
+                    <aside class="note">
+                        <p class="note-title">Bien choisir les mots ajoutés</p>
+                        <p>
+                            Ajoutez un mot ou une expression de deux mots, sans chiffres. Le dictionnaire aide la
+                            reconnaissance ; il ne garantit pas chaque résultat.
+                        </p>
+                    </aside>
+                </section>
+                <section id="convertir-nombres" aria-labelledby="titre-convertir-nombres">
+                    <h2 id="titre-convertir-nombres">6. Convertir les nombres</h2>
+                    <p>Dans le menu de gauche, cliquez sur Règles personnalisées, sous Personnaliser.</p>
+                    <figure class="screenshot figure-compact">
+                        <img
+                            src="images/navigation-regles.png"
+                            width="339"
+                            height="94"
+                            alt="Ouvrir les règles personnalisées."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>Ouvrir les règles personnalisées.</figcaption>
+                    </figure>
+                    <p>
+                        En haut de la page, cliquez sur l’interrupteur « Convertir les nombres en chiffres » (1) pour
+                        l’activer.
+                    </p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/conversion-nombres.png"
+                            width="1280"
+                            height="272"
+                            alt="1 — Activer la conversion des nombres."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>1 — Activer la conversion des nombres.</figcaption>
+                    </figure>
+                    <p>Ouvrez la liste de langue (2), puis cliquez sur Français (3).</p>
+                    <figure class="screenshot figure-compact">
+                        <img
+                            src="images/conversion-langue.png"
+                            width="336"
+                            height="226"
+                            alt="2 — Ouvrir la liste des langues. 3 — Choisir Français."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>2 — Ouvrir la liste des langues. 3 — Choisir Français.</figcaption>
+                    </figure>
+                    <p>
+                        Cliquez dans le champ du seuil (4) et saisissez 0 pour permettre la conversion de tous les
+                        nombres reconnus.
+                    </p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/conversion-seuil.png"
+                            width="1240"
+                            height="144"
+                            alt="4 — Saisir le seuil souhaité."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>4 — Saisir le seuil souhaité.</figcaption>
+                    </figure>
+                    <aside class="note">
+                        <p class="note-title">Exemple à tester</p>
+                        <p>
+                            « vingt-trois » peut devenir « 23 ». Avec un seuil de 10, les nombres inférieurs à 10
+                            restent en lettres. Vérifiez toujours les nombres obtenus.
+                        </p>
+                    </aside>
+                    <p>
+                        La conversion est désactivée dans la configuration initiale. Le même interrupteur (1) permet de
+                        la désactiver à nouveau.
+                    </p>
+                </section>
+                <section id="retrouver-texte" aria-labelledby="titre-retrouver-texte">
+                    <h2 id="titre-retrouver-texte">7. Retrouver un texte et masquer la fenêtre</h2>
+                    <p>Dans le menu de gauche, cliquez sur Accueil (1).</p>
+                    <figure class="screenshot figure-compact">
+                        <img
+                            src="images/navigation-accueil.png"
+                            width="413"
+                            height="101"
+                            alt="1 — Revenir à l’accueil."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>1 — Revenir à l’accueil.</figcaption>
+                    </figure>
+                    <p>Dans Activité récente, cliquez sur le texte souhaité (2). Il est copié.</p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/activite-recente.png"
+                            width="1293"
+                            height="195"
+                            alt="2 — Copier cette transcription."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>2 — Copier cette transcription.</figcaption>
+                    </figure>
+                    <p>
+                        Revenez dans votre document et cliquez à l’endroit où vous voulez insérer le texte (1 dans
+                        l’exemple ci-dessous).
+                    </p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/champ-destination.png"
+                            width="1540"
+                            height="694"
+                            alt="1 — Exemple de zone de destination du texte."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>1 — Exemple de zone de destination du texte.</figcaption>
+                    </figure>
+                    <p>
+                        Maintenez Ctrl, appuyez sur V, puis relâchez les touches : le texte est collé. Vérifiez qu’il
+                        n’avait pas déjà été inséré avant de le coller une seconde fois.
+                    </p>
+                    <aside class="note">
+                        <p class="note-title">L’activité récente n’est pas une sauvegarde</p>
+                        <p>Enregistrez votre document dans l’application où vous travaillez.</p>
+                    </aside>
+                    <h3>Masquer la fenêtre de Murmure</h3>
+                    <p>
+                        Dans la fenêtre Murmure, Alt + F4 masque la fenêtre et laisse la dictée disponible. Pour
+                        retrouver Murmure, appuyez sur Windows, tapez « Murmure », puis Entrée.
+                    </p>
+                    <aside class="note">
+                        <p class="note-title">Conservation des transcriptions</p>
+                        <p>
+                            Par défaut, Murmure conserve jusqu’à cinq transcriptions dans Activité récente. Elles ne
+                            sont plus disponibles après avoir quitté complètement l’application. Fermer uniquement la
+                            fenêtre laisse Murmure actif et conserve cet historique.
+                        </p>
+                    </aside>
+                </section>
+                <section id="depannage" aria-labelledby="titre-depannage">
+                    <h2 id="titre-depannage">8. Problème courant</h2>
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col"><strong>Ce que vous constatez</strong></th>
+                                    <th scope="col"><strong>Ce que vous pouvez vérifier</strong></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>La dictée ne démarre pas.</td>
+                                    <td>
+                                        Vérifiez que Murmure est ouvert, puis vérifiez votre touche et le mode
+                                        d’enregistrement. Voir
+                                        <a href="#choisir-microphone">« Choisir son microphone »</a> et
+                                        <a href="#personnaliser-touches">« Personnaliser les touches »</a>.
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Le microphone ne capte pas votre voix.</td>
+                                    <td>
+                                        Vérifiez son branchement et le microphone sélectionné. Voir
+                                        <a href="#choisir-microphone">« Choisir son microphone »</a>.
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Le texte n’apparaît pas.</td>
+                                    <td>
+                                        Attendez la fin du traitement. Vérifiez la zone de saisie sélectionnée. Vous
+                                        pouvez récupérer le texte dans Activité récente : voir
+                                        <a href="#retrouver-texte">« Retrouver un texte »</a>.
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Une commande de ponctuation reste écrite.</td>
+                                    <td>
+                                        Prononcez l’expression exacte du tableau de la rubrique
+                                        <a href="#dicter-ponctuation">« Dicter la ponctuation »</a>.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <h3>Le microphone vient d’être branché</h3>
+                    <figure class="screenshot figure-compact">
+                        <img
+                            src="images/navigation-systeme.png"
+                            width="413"
+                            height="100"
+                            alt="Ouvrir Système dans le menu de gauche."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>Ouvrir Système dans le menu de gauche.</figcaption>
+                    </figure>
+                    <p>
+                        Dans Système, cliquez sur le bouton d’actualisation à droite de la liste des microphones (1),
+                        puis sélectionnez votre microphone comme indiqué dans la rubrique
+                        <a href="#choisir-microphone">« Choisir son microphone »</a>.
+                    </p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/microphone-actualiser.png"
+                            width="1280"
+                            height="256"
+                            alt="1 — Actualiser la liste après avoir branché un microphone."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>1 — Actualiser la liste après avoir branché un microphone.</figcaption>
+                    </figure>
+                    <aside class="note">
+                        <p class="note-title">Si le problème persiste</p>
+                        <p>Vous pouvez refaire un essai avec « Ceci est un essai de dictée ».</p>
+                    </aside>
+                </section>
+                <section id="speechmike-selection" aria-labelledby="titre-speechmike-selection">
+                    <h2 id="titre-speechmike-selection">Si vous disposez d’un SpeechMike</h2>
+                    <p>
+                        Cette partie concerne le Philips SpeechMike SMP3700 sous Windows. Si vous utilisez un autre
+                        microphone, le parcours au clavier des rubriques précédentes suffit.
+                    </p>
+                    <p>
+                        Branchez le SpeechMike. Pour utiliser ses boutons avec Murmure, il doit être en mode
+                        <strong>Event</strong>.
+                    </p>
+                    <h3>Activer le mode Event</h3>
+                    <ol class="steps">
+                        <li>
+                            Sur le microphone, maintenez simultanément les boutons <strong>•EoL/••Prio</strong> (fin de
+                            lettre/priorité) et <strong>INS/OVR</strong> (insertion/remplacement) pendant trois
+                            secondes, puis relâchez-les.
+                        </li>
+                        <li>Les voyants des boutons clignotent ensemble en orange.</li>
+                        <li>
+                            Appuyez sur <strong>F1 du microphone</strong> pour sélectionner le mode Event. Le microphone
+                            quitte alors la sélection des modes.
+                        </li>
+                    </ol>
+                    <p>
+                        Pour vérifier le mode actif, appuyez brièvement sur •EoL/••Prio et INS/OVR ensemble : le voyant
+                        de F1 s’allume brièvement en orange lorsque le mode Event est actif.
+                    </p>
+                    <h3>Sélectionner le SpeechMike dans Murmure</h3>
+                    <p>Dans le menu de gauche, cliquez sur Système.</p>
+                    <figure class="screenshot figure-compact">
+                        <img
+                            src="images/navigation-systeme.png"
+                            width="413"
+                            height="100"
+                            alt="Ouvrir Système."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>Ouvrir Système.</figcaption>
+                    </figure>
+                    <p>Ouvrez la liste Microphone (1) et cliquez sur l’entrée de votre SpeechMike (2).</p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/microphone-speechmike.png"
+                            width="1280"
+                            height="368"
+                            alt="1 — Ouvrir la liste. 2 — Sélectionner l’entrée audio du SpeechMike."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>1 — Ouvrir la liste. 2 — Sélectionner l’entrée audio du SpeechMike.</figcaption>
+                    </figure>
+                    <p>
+                        Le guide du microphone remplace les commandes clavier. Pour initialiser les boutons, appuyez
+                        puis relâchez REC une première fois, sans dicter. Attendez que le message « SpeechMike prêt »
+                        (3) apparaisse avant de commencer votre dictée.
+                    </p>
+                    <figure class="screenshot figure-compact">
+                        <img
+                            src="images/speechmike-pret.png"
+                            width="224"
+                            height="82"
+                            alt="3 — Vérifier que le SpeechMike est prêt."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>3 — Vérifier que le SpeechMike est prêt.</figcaption>
+                    </figure>
+                    <aside class="note">
+                        <p class="note-title">Si les boutons ne répondent pas</p>
+                        <p>Vérifiez le branchement, le microphone sélectionné et le message affiché.</p>
+                    </aside>
+                </section>
+                <section id="speechmike-boutons" aria-labelledby="titre-speechmike-boutons">
+                    <h2 id="titre-speechmike-boutons">Les boutons du SpeechMike</h2>
+                    <figure class="screenshot">
+                        <img
+                            src="images/speechmike-boutons.png"
+                            width="1536"
+                            height="1024"
+                            alt="Les boutons physiques REC, F1 et F2. Photographie Philips, illustration annotée de la distribution."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            Les boutons physiques REC, F1 et F2. Photographie Philips, illustration annotée de la
+                            distribution.
+                        </figcaption>
+                    </figure>
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col"><strong>Bouton du microphone</strong></th>
+                                    <th scope="col"><strong>Action</strong></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>REC</td>
+                                    <td>
+                                        Démarrer et arrêter la dictée. En mode « Appuyer pour parler », maintenir puis
+                                        relâcher.
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>F1</td>
+                                    <td>Annuler l’enregistrement en cours sans insérer son contenu.</td>
+                                </tr>
+                                <tr>
+                                    <td>F2</td>
+                                    <td>Coller la dernière transcription dans la zone où se trouve le curseur.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <aside class="note">
+                        <p class="note-title">Les boutons du micro</p>
+                        <p>
+                            F1 et F2 sont les boutons du micro. Annuler n’efface pas un texte déjà inséré. Les trois
+                            raccourcis clavier sont alors suspendus.
+                        </p>
+                    </aside>
+                    <h3>Revenir au clavier</h3>
+                    <p>
+                        Terminez la dictée. Dans Système, ouvrez la liste Microphone (2) et cliquez sur un autre
+                        microphone (3). Vos raccourcis clavier redeviennent disponibles.
+                    </p>
+                    <figure class="screenshot">
+                        <img
+                            src="images/microphone-clavier.png"
+                            width="1280"
+                            height="368"
+                            alt="2 — Ouvrir la liste. 3 — Choisir un autre microphone pour retrouver les commandes clavier."
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            2 — Ouvrir la liste. 3 — Choisir un autre microphone pour retrouver les commandes clavier.
+                        </figcaption>
+                    </figure>
+                </section>
+            </main>
+        </div>
+    </body>
+</html>

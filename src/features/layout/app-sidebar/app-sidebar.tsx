@@ -1,6 +1,8 @@
-import { Home, Heart, ChevronRight, BookText, Wrench, AlignLeft, Settings } from 'lucide-react';
+import { Home, Heart, ChevronRight, BookText, BookOpen, Wrench, AlignLeft, Settings } from 'lucide-react';
 import { Link, useLocation } from '@tanstack/react-router';
 import { useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { toast } from 'react-toastify';
 import {
     Sidebar,
     SidebarHeader,
@@ -41,6 +43,7 @@ const getPersonalizeSubItems = (t: (key: string) => string) => [
 export const AppSidebar = () => {
     const { pathname } = useLocation();
     const [personalizeOpen, setPersonalizeOpen] = useState(true);
+    const [isOpeningUserGuide, setIsOpeningUserGuide] = useState(false);
     const { t } = useTranslation();
     const { seen: revampSeen } = useDictionaryRevampSeen();
     const personalizeSubItems = getPersonalizeSubItems(t);
@@ -58,6 +61,17 @@ export const AppSidebar = () => {
               : recordShortcut.length > 0
                 ? recordShortcut
                 : undefined;
+
+    const handleOpenUserGuide = async () => {
+        setIsOpeningUserGuide(true);
+        try {
+            await invoke('open_user_guide');
+        } catch {
+            toast.error(t('Unable to open the user guide.'));
+        } finally {
+            setIsOpeningUserGuide(false);
+        }
+    };
 
     return (
         <Sidebar
@@ -133,6 +147,20 @@ export const AppSidebar = () => {
                 )}
             </SidebarContent>
             <SidebarFooter className="bg-background">
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            type="button"
+                            onClick={handleOpenUserGuide}
+                            disabled={isOpeningUserGuide}
+                            aria-busy={isOpeningUserGuide}
+                            data-testid="user-guide-link"
+                        >
+                            <BookOpen />
+                            <span>{t('User guide')}</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
                 <Link
                     to="/about"
                     className={`${isAboutActive ? 'text-sky-400' : 'text-muted-foreground hover:text-foreground'} text-xs transition-colors flex items-center gap-2 px-2`}

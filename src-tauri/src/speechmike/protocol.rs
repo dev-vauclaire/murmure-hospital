@@ -2,7 +2,7 @@
 // (Apache-2.0), Copyright 2022 Google LLC. Hardware behavior still needs validation.
 // https://github.com/GoogleChromeLabs/dictation_support/blob/077292a27ba77e40468fb464889fe3b5c121737d/src/dictation_device_manager.ts
 // https://github.com/GoogleChromeLabs/dictation_support/blob/077292a27ba77e40468fb464889fe3b5c121737d/src/speechmike_hid_device.ts
-// Full license: resources/hospital/licenses/dictation-support-APACHE-2.0.txt.
+// Full license: licenses/dictation-support-APACHE-2.0.txt.
 
 #[cfg(test)]
 use super::types::{Button, ButtonChange};

@@ -106,7 +106,7 @@ Le filtre USB et le décodage proviennent du [SDK Google de référence](https:/
 
 En développement sous Windows, la même commande peut être lancée depuis `src-tauri/` avec `cargo run -- --speechmike-diagnostic`. Sous Linux et macOS, elle renvoie un message indiquant que ce diagnostic est réservé à Windows.
 
-La dépendance `hidapi` est limitée à Windows et utilise son backend natif. Les [mentions du protocole adapté](resources/hospital/licenses/dictation-support-NOTICE.txt) et la [licence Apache-2.0](resources/hospital/licenses/dictation-support-APACHE-2.0.txt) sont embarquées avec les ressources de l'application.
+La dépendance `hidapi` est limitée à Windows et utilise son backend natif. Les [mentions du protocole adapté](licenses/dictation-support-NOTICE.txt) et la [licence Apache-2.0](licenses/dictation-support-APACHE-2.0.txt) sont embarquées avec les ressources de l'application.
 
 ## Lancer en local
 

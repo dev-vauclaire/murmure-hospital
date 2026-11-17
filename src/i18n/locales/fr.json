@@ -714,5 +714,7 @@
     "Show an example for {{name}}": "Afficher un exemple pour {{name}}",
     "Result": "Résultat",
     "Unable to load formatting rules.": "Impossible de charger les règles personnalisées.",
-    "Custom rule": "règle personnalisée"
+    "Custom rule": "règle personnalisée",
+    "User guide": "Guide d’utilisation",
+    "Unable to open the user guide.": "Impossible d’ouvrir le guide d’utilisation."
 }

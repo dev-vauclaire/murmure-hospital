@@ -432,6 +432,7 @@ pub fn run() {
             is_model_available,
             get_model_path,
             read_murmure_file,
+            open_user_guide,
             write_murmure_file,
             get_all_settings,
             get_speechmike_status,

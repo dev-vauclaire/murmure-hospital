@@ -16,6 +16,7 @@ pub mod shortcuts;
 pub mod smartmic;
 pub mod speechmike;
 pub mod stats;
+pub mod user_guide;
 pub mod wake_word;
 
 pub use clipboard::*;
@@ -35,4 +36,5 @@ pub use shortcuts::*;
 pub use smartmic::*;
 pub use speechmike::*;
 pub use stats::*;
+pub use user_guide::*;
 pub use wake_word::*;

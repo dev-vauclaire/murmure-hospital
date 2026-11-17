@@ -40,7 +40,7 @@
             "icons/icon.icns",
             "icons/icon.ico"
         ],
-        "resources": ["../resources/**/*", "resources/smartmic/*"],
+        "resources": ["../resources/**/*", "../licenses/*.txt", "resources/smartmic/*"],
         "macOS": {
             "entitlements": "./Entitlements.plist"
         },
