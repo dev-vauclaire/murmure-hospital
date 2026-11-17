@@ -4,7 +4,10 @@ import StarryBackground from './starry-background/starry-background';
 import { ExternalLink } from '@/components/external-link';
 import { useGetVersion } from '../layout/hooks/use-get-version';
 import { useTranslation } from '@/i18n';
-import appIcon from '@/assets/app-icon.png';
+import { AppHeader } from '../layout/app-header/app-header';
+
+// This changes only when integrating a new upstream release.
+const UPSTREAM_VERSION = '2.0.3';
 
 const containerVariants = {
     hidden: { opacity: 1 },
@@ -104,36 +107,28 @@ export const About = () => {
                 animate="visible"
             >
                 <motion.div variants={sectionVariants} className="flex flex-col items-center gap-4">
-                    <div className="flex items-center justify-center gap-3">
-                        <motion.img
-                            src={appIcon}
-                            alt="Murmure"
-                            className="w-14 h-14"
-                            style={{
-                                filter: 'drop-shadow(0 0 20px rgba(56, 189, 248, 0.3))',
-                            }}
-                            variants={logoVariants}
-                        />
+                    <div className="flex w-full flex-col items-center justify-center gap-3">
+                        <motion.div variants={logoVariants} className="w-full">
+                            <AppHeader />
+                        </motion.div>
                         <h1
                             className="text-3xl font-bold tracking-wide"
                             style={{
                                 textShadow: '0 0 30px rgba(14, 165, 233, 0.4)',
                             }}
                         >
-                            <span className="text-sky-400">{t('Murmure')}</span>
+                            <span className="text-sky-400">{t('Murmure Vauclaire')}</span>
                         </h1>
                     </div>
-                    <p className="italic text-sm text-muted-foreground">
-                        {t('Private by design.')}
-                        <br />
-                        {t('Speech recognition that stays on your device.')}
+                    <p className="text-sm text-muted-foreground">
+                        {t('Murmure Vauclaire is an adaptation of Murmure by the Vauclaire IT department.')}
                     </p>
                 </motion.div>
 
                 <motion.div variants={sectionVariants} className="w-full space-y-5">
                     <div className="text-center space-y-3">
                         <h2 className="text-xl font-semibold text-foreground tracking-tight">
-                            {t('Help Murmure Grow')}
+                            {t('Support the original Murmure project')}
                         </h2>
                         <p className="text-sm text-muted-foreground max-w-sm mx-auto">
                             {t('Murmure is free and open-source. Your support helps keep it alive and improving.')}
@@ -198,7 +193,12 @@ export const About = () => {
                             background: 'linear-gradient(to right, transparent, rgb(63 63 70), transparent)',
                         }}
                     />
-                    <p className="text-xs text-muted-foreground">v{version || '-'}</p>
+                    <p className="text-xs text-muted-foreground">
+                        {t('Vauclaire version: {{version}}', { version: version || '—' })}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        {t('Based on Murmure {{version}}', { version: UPSTREAM_VERSION })}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                         {t('Powered by')} <span className="text-sky-400/70">{t('Parakeet ultra')}</span>
                         {' · '}

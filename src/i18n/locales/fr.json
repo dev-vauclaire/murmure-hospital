@@ -716,5 +716,11 @@
     "Unable to load formatting rules.": "Impossible de charger les règles personnalisées.",
     "Custom rule": "règle personnalisée",
     "User guide": "Guide d’utilisation",
-    "Unable to open the user guide.": "Impossible d’ouvrir le guide d’utilisation."
+    "Unable to open the user guide.": "Impossible d’ouvrir le guide d’utilisation.",
+    "Murmure Vauclaire": "Murmure Vauclaire",
+    "Murmure Vauclaire is an adaptation of Murmure by the Vauclaire IT department.": "Murmure Vauclaire est une adaptation de Murmure réalisée par le service informatique de Vauclaire.",
+    "Support the original Murmure project": "Soutenir le projet original Murmure",
+    "Vauclaire version: {{version}}": "Version Vauclaire : {{version}}",
+    "Based on Murmure {{version}}": "Basé sur Murmure {{version}}",
+    "Check your browser to read it.": "Consultez votre navigateur pour le lire."
 }

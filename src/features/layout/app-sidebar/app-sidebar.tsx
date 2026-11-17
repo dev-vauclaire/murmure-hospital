@@ -66,6 +66,7 @@ export const AppSidebar = () => {
         setIsOpeningUserGuide(true);
         try {
             await invoke('open_user_guide');
+            toast.info(t('Check your browser to read it.'), { autoClose: 5000 });
         } catch {
             toast.error(t('Unable to open the user guide.'));
         } finally {
@@ -160,15 +161,15 @@ export const AppSidebar = () => {
                             <span>{t('User guide')}</span>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={isAboutActive}>
+                            <Link to="/about" data-testid="about-tab">
+                                <Heart />
+                                <span>{t('Support Murmure')}</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
                 </SidebarMenu>
-                <Link
-                    to="/about"
-                    className={`${isAboutActive ? 'text-sky-400' : 'text-muted-foreground hover:text-foreground'} text-xs transition-colors flex items-center gap-2 px-2`}
-                    data-testid="about-tab"
-                >
-                    <Heart className={`w-4 h-4 ${isAboutActive ? 'text-sky-400' : 'text-rose-300/70'}`} />
-                    <span>{t('Support Murmure')}</span>
-                </Link>
             </SidebarFooter>
         </Sidebar>
     );
