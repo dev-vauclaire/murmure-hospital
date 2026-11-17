@@ -172,7 +172,7 @@ jobs:
                   }
 
             - name: Build the unsigned MSI
-              run: pnpm.cmd tauri build --bundles msi --config packaging/windows/tauri.setup.conf.json --ci --no-sign
+              run: pnpm.cmd tauri build --bundles msi --config packaging/windows/tauri.setup.conf.json --ci --no-sign --verbose
 
             - name: Build offline setup with embedded prerequisites
               run: |

@@ -65,8 +65,22 @@ class InstallerOptions(unittest.TestCase):
         self.assertEqual(value.get("Root"), "HKLM")
         self.assertEqual(value.get("Key"), r"Software\Microsoft\Windows\CurrentVersion\Run")
         self.assertEqual(value.get("Name"), "MurmureHospital")
-        self.assertEqual(value.get("Value"), '"[#Path]" --autostart --hidden')
+        self.assertEqual(value.get("Value"), '"[INSTALLDIR]{{main_binary_name}}.exe" --autostart --hidden')
         self.assertEqual(value.get("KeyPath"), "yes")
+
+    def test_logon_command_uses_the_install_directory_without_cross_component_references(self):
+        value = self.root.find(".//w:Component[@Id='HospitalStartWithWindows']/w:RegistryValue", NS)
+        command = value.get("Value")
+        # ICE69 forbids this registry component from referring to another
+        # component's file. Directory properties avoid that ownership issue.
+        self.assertNotRegex(command, r"\[(?:#|!|\$)[^\]]+\]")
+        for directory, binary in (
+            ("C:\\Program Files\\Murmure\\", "murmure"),
+            ("D:\\Applications locales\\Murmure\\", "murmure-hopital"),
+        ):
+            with self.subTest(directory=directory, binary=binary):
+                rendered = command.replace("{{main_binary_name}}", binary).replace("[INSTALLDIR]", directory)
+                self.assertEqual(rendered, f'"{directory}{binary}.exe" --autostart --hidden')
 
     def test_both_options_are_persisted_as_machine_dwords(self):
         component = self.root.find(".//w:Component[@Id='HospitalInstallerOptions']", NS)

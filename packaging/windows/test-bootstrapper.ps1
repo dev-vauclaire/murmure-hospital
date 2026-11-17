@@ -186,7 +186,16 @@ function Test-InstallerOptions {
     Assert-Condition ($runRows.Count -eq 1) 'Expected exactly one machine logon registry entry.'
     $run = $runRows[0]
     Assert-Condition ($run.Root -ceq '2' -and $run.Key -ceq 'Software\Microsoft\Windows\CurrentVersion\Run') 'Autostart must use the machine Run key.'
-    Assert-Condition ($run.Name -ceq 'MurmureHospital' -and $run.Value -ceq '"[#Path]" --autostart --hidden') 'Autostart must quote the installed executable and start hidden.'
+    $executableQuery = 'SELECT `FileName`, `Component_` FROM `File` WHERE `File` = ''Path'''
+    $executables = @(Read-MsiRows -Database $Database -Query $executableQuery -Columns @('FileName', 'Component'))
+    Assert-Condition ($executables.Count -eq 1 -and $executables[0].Component -ceq 'Path') 'Expected the native main executable component.'
+    $executableDirectoryQuery = 'SELECT `Directory_` FROM `Component` WHERE `Component` = ''Path'''
+    $executableDirectories = @(Read-MsiRows -Database $Database -Query $executableDirectoryQuery -Columns @('Directory'))
+    Assert-Condition ($executableDirectories.Count -eq 1 -and $executableDirectories[0].Directory -ceq 'INSTALLDIR') 'The main executable must belong to INSTALLDIR.'
+    # MSI filenames may contain a short|long pair; Run must use the long name.
+    $executableName = $executables[0].FileName.Split('|')[-1]
+    $expectedRunCommand = '"[INSTALLDIR]' + $executableName + '" --autostart --hidden'
+    Assert-Condition ($run.Name -ceq 'MurmureHospital' -and $run.Value -ceq $expectedRunCommand) 'Autostart must quote the installed executable and start hidden without an ICE69 cross-component file reference.'
 
     $optionsQuery = 'SELECT `Root`, `Key`, `Name`, `Value` FROM `Registry` WHERE `Component_` = ''HospitalInstallerOptions'''
     $options = @(Read-MsiRows -Database $Database -Query $optionsQuery -Columns @('Root', 'Key', 'Name', 'Value'))

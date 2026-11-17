@@ -108,6 +108,7 @@ class BootstrapperContracts(unittest.TestCase):
         self.assertNotRegex(workflow, r"--bundles\s+nsis\b")
         self.assertRegex(workflow, r"--bundles\s+msi\b")
         self.assertIn("packaging/windows/tauri.setup.conf.json", workflow)
+        self.assertRegex(workflow, r"pnpm\.cmd tauri build[^\n]*--verbose\b")
 
     def test_installer_does_not_launch_murmure_in_the_administrators_profile(self):
         msi = self.bundle.find("wix:Chain/wix:MsiPackage", NS)

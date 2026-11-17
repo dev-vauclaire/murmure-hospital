@@ -57,8 +57,9 @@ COMPONENTS = '''            <Component Id="HospitalInstallerOptions" Guid="*" Wi
             </Component>
             <Component Id="HospitalStartWithWindows" Guid="*" Win64="$(var.Win64)" Transitive="yes">
                 <Condition>HOSPITAL_START_WITH_WINDOWS = "1"</Condition>
+                <!-- ICE69 forbids a file reference owned by another component. -->
                 <RegistryValue Root="HKLM" Key="Software\\Microsoft\\Windows\\CurrentVersion\\Run"
-                               Name="MurmureHospital" Type="string" Value="&quot;[#Path]&quot; --autostart --hidden" KeyPath="yes" />
+                               Name="MurmureHospital" Type="string" Value="&quot;[INSTALLDIR]{{main_binary_name}}.exe&quot; --autostart --hidden" KeyPath="yes" />
             </Component>
 '''
 
