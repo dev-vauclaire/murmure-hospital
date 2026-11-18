@@ -23,9 +23,6 @@ description = "Allow disabling autostart"
 ["autostart:allow-is-enabled"]
 description = "Allow checking if autostart is enabled"
 
-["updater:default"]
-description = "Allow checking for and installing updates"
-
 ["clipboard-manager:allow-read-text"]
 description = "Allow reading text from clipboard"
 

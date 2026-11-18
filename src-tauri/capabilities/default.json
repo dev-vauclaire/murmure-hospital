@@ -10,7 +10,6 @@
         "autostart:allow-enable",
         "autostart:allow-disable",
         "autostart:allow-is-enabled",
-        "updater:default",
         "clipboard-manager:allow-read-text",
         "clipboard-manager:allow-write-text",
         "dialog:allow-open",

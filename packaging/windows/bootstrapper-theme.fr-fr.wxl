@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright (c) .NET Foundation and contributors. All rights reserved. Licensed under the Microsoft Reciprocal License. See licenses/wix3-MS-RL.txt for full license information. Adapted for Murmure Hospital. -->
+<!-- Copyright (c) .NET Foundation and contributors. All rights reserved. Licensed under the Microsoft Reciprocal License. See licenses/wix3-MS-RL.txt for full license information. Adapted for Murmure Vauclaire. -->
 
 
 <WixLocalization Culture="fr-fr" Language="1036" xmlns="http://schemas.microsoft.com/wix/2006/localization">
@@ -57,5 +57,5 @@
   <String Id="ErrorFailNoActionReboot">Un redémarrage est nécessaire avant de poursuivre.</String>
   <String Id="HospitalOptionsScope">Ces choix s'appliquent à tous les utilisateurs du poste.</String>
   <String Id="HospitalDesktopShortcut">Créer un raccourci sur le Bureau</String>
-  <String Id="HospitalStartWithWindows">Lancer Murmure à l'ouverture de session Windows</String>
+  <String Id="HospitalStartWithWindows">Lancer Murmure Vauclaire à l'ouverture de session Windows</String>
 </WixLocalization>

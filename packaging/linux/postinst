@@ -1,14 +1,14 @@
 #!/bin/sh
-# Murmure .deb post-install hook:
-#   - Migrate legacy murmure.desktop to com.al1x-ai.murmure.desktop.
+# Murmure Vauclaire .deb / .rpm post-install hook:
+#   - Align only this distribution's desktop file with its application ID.
 #   - Reload udev rules so the /dev/uinput ACL shipped in
-#     60-murmure-uinput.rules applies without requiring a reboot.
+#     60-murmure-vauclaire-uinput.rules applies without requiring a reboot.
 #     Murmure writes directly to /dev/uinput for Wayland paste;
 #     no external daemon is needed.
 set -e
 
-SRC=/usr/share/applications/murmure.desktop
-DEST=/usr/share/applications/com.al1x-ai.murmure.desktop
+SRC="/usr/share/applications/Murmure Vauclaire.desktop"
+DEST=/usr/share/applications/lan.ch-vauclaire.murmure.desktop
 if [ -f "$SRC" ]; then
     mv -f "$SRC" "$DEST"
 fi

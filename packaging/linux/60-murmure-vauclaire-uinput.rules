@@ -1,5 +1,5 @@
 # Grant /dev/uinput access to the active GUI session user so that
-# Murmure can open it directly to create a virtual keyboard for
+# Murmure Vauclaire can open it directly to create a virtual keyboard for
 # Wayland paste injection (Ctrl+V, Ctrl+C, Enter).
 #
 # systemd-logind applies an ACL tagged `uaccess` to the currently-active

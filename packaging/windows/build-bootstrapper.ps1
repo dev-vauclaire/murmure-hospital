@@ -20,6 +20,9 @@ if (-not $IsWindows) {
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 $dependencies = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'bootstrapper-dependencies.json') -Raw | ConvertFrom-Json
 $package = Get-Content -LiteralPath (Join-Path $repositoryRoot 'package.json') -Raw | ConvertFrom-Json
+$tauri = Get-Content -LiteralPath (Join-Path $repositoryRoot 'src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json
+$setupConfig = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'tauri.setup.conf.json') -Raw | ConvertFrom-Json
+$bundleDefinition = [xml] (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'bootstrapper.wxs') -Raw)
 if ($package.version -notmatch '^\d+\.\d+\.\d+$') {
     throw 'The setup requires a numeric major.minor.patch application version.'
 }
@@ -36,7 +39,7 @@ $resolvedMsi = (Resolve-Path -LiteralPath $MsiPath).Path
 # A fresh workspace avoids reusing an unverified executable from a previous build.
 $work = New-Item -ItemType Directory -Path $WorkingDirectory -ErrorAction Stop
 $output = New-Item -ItemType Directory -Path $OutputDirectory -Force
-$setupPath = Join-Path $output.FullName 'Murmure-Hospital-Setup.exe'
+$setupPath = Join-Path $output.FullName 'Murmure-Vauclaire-Setup.exe'
 if (Test-Path -LiteralPath $setupPath) {
     throw 'The setup output already exists.'
 }
@@ -134,6 +137,15 @@ if ($LASTEXITCODE -ne 0) { throw 'WiX could not link the bootstrapper.' }
     -WorkingDirectory (Join-Path $work.FullName 'extracted')
 
 $metadata = [ordered]@{
+    identity = [ordered]@{
+        product_name = $tauri.productName
+        publisher = $tauri.bundle.publisher
+        identifier = $tauri.identifier
+        executable = "$($tauri.mainBinaryName).exe"
+        homepage = $tauri.bundle.homepage
+        msi_upgrade_code = $setupConfig.bundle.windows.wix.upgradeCode
+        bundle_upgrade_code = [string] $bundleDefinition.Wix.Bundle.UpgradeCode
+    }
     bundle_version = $bundleVersion
     setup = [IO.Path]::GetFileName($setupPath)
     setup_sha256 = (Get-FileHash -LiteralPath $setupPath -Algorithm SHA256).Hash.ToLowerInvariant()

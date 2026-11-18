@@ -41,7 +41,8 @@ pub fn ensure_recordings_dir(app: &tauri::AppHandle) -> Result<PathBuf> {
         .path()
         .temp_dir()
         .context("Failed to resolve temp dir")?
-        .join("murmure_recordings");
+        .join(&app.config().identifier)
+        .join("recordings");
 
     if !recordings.exists() {
         std::fs::create_dir_all(&recordings).context("Failed to create recordings dir")?;

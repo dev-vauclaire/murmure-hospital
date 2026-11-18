@@ -45,12 +45,12 @@ DESKTOP_OPTION += '''
                 <Component Id="HospitalDesktopShortcutCleanup" Guid="*" Transitive="yes">
                     <Condition>HOSPITAL_DESKTOP_SHORTCUT = "0"</Condition>
                     <RemoveFile Id="HospitalPreviousDesktopShortcut" Name="{{product_name}}.lnk" On="install" />
-                    <RegistryValue Root="HKCU" Key="Software\\Vauclaire\\Murmure\\Installer" Name="DesktopShortcutRemoved" Type="integer" Value="1" KeyPath="yes" />
+                    <RegistryValue Root="HKCU" Key="Software\\Vauclaire\\MurmureVauclaire\\Installer" Name="DesktopShortcutRemoved" Type="integer" Value="1" KeyPath="yes" />
                 </Component>'''
 
 COMPONENT_ANCHOR = '            <Component Id="RegistryEntries" Guid="*">'
 COMPONENTS = '''            <Component Id="HospitalInstallerOptions" Guid="*" Win64="$(var.Win64)">
-                <RegistryKey Root="HKLM" Key="Software\\Vauclaire\\Murmure\\Installer">
+                <RegistryKey Root="HKLM" Key="Software\\Vauclaire\\MurmureVauclaire\\Installer">
                     <RegistryValue Name="DesktopShortcut" Type="integer" Value="[HOSPITAL_DESKTOP_SHORTCUT]" KeyPath="yes" />
                     <RegistryValue Name="StartWithWindows" Type="integer" Value="[HOSPITAL_START_WITH_WINDOWS]" />
                 </RegistryKey>
@@ -59,7 +59,7 @@ COMPONENTS = '''            <Component Id="HospitalInstallerOptions" Guid="*" Wi
                 <Condition>HOSPITAL_START_WITH_WINDOWS = "1"</Condition>
                 <!-- ICE69 forbids a file reference owned by another component. -->
                 <RegistryValue Root="HKLM" Key="Software\\Microsoft\\Windows\\CurrentVersion\\Run"
-                               Name="MurmureHospital" Type="string" Value="&quot;[INSTALLDIR]{{main_binary_name}}.exe&quot; --autostart --hidden" KeyPath="yes" />
+                               Name="MurmureVauclaire" Type="string" Value="&quot;[INSTALLDIR]{{main_binary_name}}.exe&quot; --autostart --hidden" KeyPath="yes" />
             </Component>
 '''
 

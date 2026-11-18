@@ -1,4 +1,4 @@
-name: Build Windows hospitalier
+name: Build Windows Vauclaire
 run-name: Build setup - ${{ github.ref_name }}
 
 on:
@@ -48,6 +48,10 @@ jobs:
 
             - name: Check Windows packaging scripts
               run: |
+                  python scripts/test-hospital-identity.py
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'Hospital identity checks failed.'
+                  }
                   python packaging/windows/test-installer-options.py
                   if ($LASTEXITCODE -ne 0) {
                       throw 'MSI installer option checks failed.'
@@ -186,7 +190,7 @@ jobs:
                   if ([long]$env:GITHUB_RUN_ATTEMPT -ge 100 -or $bundleRevision -gt 65535) {
                       throw 'The bundle revision exceeds its range. Review the revision scheme before publishing another setup.'
                   }
-                  $artifactDirectory = 'hospital-windows-artifact'
+                  $artifactDirectory = 'vauclaire-windows-artifact'
                   New-Item -ItemType Directory -Path $artifactDirectory -ErrorAction Stop | Out-Null
                   & ./packaging/windows/build-bootstrapper.ps1 -MsiPath $msiFiles[0].FullName `
                       -OutputDirectory (Resolve-Path $artifactDirectory).Path `
@@ -195,7 +199,7 @@ jobs:
 
             - name: Prepare build metadata
               run: |
-                  $artifactDirectory = 'hospital-windows-artifact'
+                  $artifactDirectory = 'vauclaire-windows-artifact'
                   $setup = Get-Content -LiteralPath "$artifactDirectory/bootstrapper-info.json" -Raw | ConvertFrom-Json
                   $commit = git rev-parse HEAD
                   if ($LASTEXITCODE -ne 0) {
@@ -206,6 +210,7 @@ jobs:
                   $metadata = [ordered]@{
                       commit = $commit
                       source_ref = $env:GITHUB_REF
+                      identity = $setup.identity
                       version = $version
                       target = 'x86_64-pc-windows-msvc'
                       installer_format = 'setup'
@@ -230,8 +235,8 @@ jobs:
             - name: Upload Windows test package
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
               with:
-                  name: murmure-hospital-windows-x64-setup-${{ github.sha }}
-                  path: hospital-windows-artifact/
+                  name: murmure-vauclaire-windows-x64-setup-${{ github.sha }}
+                  path: vauclaire-windows-artifact/
                   retention-days: 7
                   compression-level: 0
                   if-no-files-found: error

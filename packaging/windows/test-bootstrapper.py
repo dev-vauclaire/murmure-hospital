@@ -109,6 +109,26 @@ class BootstrapperContracts(unittest.TestCase):
         self.assertRegex(workflow, r"--bundles\s+msi\b")
         self.assertIn("packaging/windows/tauri.setup.conf.json", workflow)
         self.assertRegex(workflow, r"pnpm\.cmd tauri build[^\n]*--verbose\b")
+        self.assertIn("murmure-vauclaire-windows-x64-setup-", workflow)
+
+    def test_application_and_setup_share_the_independent_vauclaire_identity(self):
+        config = json.loads((DIRECTORY.parent.parent / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
+        self.assertEqual(config["productName"], "Murmure Vauclaire")
+        self.assertEqual(config["mainBinaryName"], "murmure-vauclaire")
+        self.assertEqual(config["identifier"], "lan.ch-vauclaire.murmure")
+        self.assertEqual(config["app"]["windows"][0]["title"], config["productName"])
+        self.assertEqual(config["bundle"]["publisher"], "Vauclaire")
+        self.assertEqual(config["bundle"]["homepage"], "https://github.com/dev-vauclaire/murmure-hospital")
+        self.assertEqual(self.bundle.get("Name"), config["productName"])
+        self.assertEqual(self.bundle.get("Manufacturer"), config["bundle"]["publisher"])
+
+        setup = json.loads((DIRECTORY / "tauri.setup.conf.json").read_text(encoding="utf-8"))
+        msi_identity = uuid.UUID(setup["bundle"]["windows"]["wix"]["upgradeCode"])
+        burn_identity = uuid.UUID(self.bundle.get("UpgradeCode"))
+        self.assertEqual(msi_identity, uuid.UUID("33486377-3BFB-432B-98EC-F55ACBFE6BB7"))
+        self.assertNotEqual(msi_identity, burn_identity)
+        self.assertNotEqual(msi_identity, uuid.UUID("277bdab5-e82b-55bc-a17c-de7aeaf0f249"))
+        self.assertNotEqual(burn_identity, uuid.UUID("7F08032B-ECE6-40F1-8615-864F3EF3684C"))
 
     def test_installer_does_not_launch_murmure_in_the_administrators_profile(self):
         msi = self.bundle.find("wix:Chain/wix:MsiPackage", NS)
@@ -146,7 +166,7 @@ class BootstrapperContracts(unittest.TestCase):
                 for search in (exists, read):
                     self.assertEqual(search.get("Root"), "HKLM")
                     self.assertEqual(search.get("Win64"), "yes")
-                    self.assertEqual(search.get("Key"), r"Software\Vauclaire\Murmure\Installer")
+                    self.assertEqual(search.get("Key"), r"Software\Vauclaire\MurmureVauclaire\Installer")
                     self.assertEqual(search.get("Value"), value)
 
     def test_custom_theme_is_used_and_all_its_french_labels_resolve(self):
@@ -165,7 +185,7 @@ class BootstrapperContracts(unittest.TestCase):
 
     def test_bundle_identity_and_version_are_independent_from_the_application_version(self):
         identity = uuid.UUID(self.bundle.get("UpgradeCode"))
-        self.assertEqual(identity, uuid.UUID("7F08032B-ECE6-40F1-8615-864F3EF3684C"))
+        self.assertEqual(identity, uuid.UUID("49D2EE58-F6F8-4FD2-AED4-33775CCA651B"))
         self.assertEqual(self.bundle.get("Version"), "$(var.BundleVersion)")
         self.assertEqual(self.bundle.get("Compressed"), "yes")
 

@@ -3,10 +3,10 @@
      xmlns:bal="http://schemas.microsoft.com/wix/BalExtension"
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
     <!-- Keep this identity across releases, independently of the MSI UpgradeCode. -->
-    <Bundle Name="Murmure Hospital"
+    <Bundle Name="Murmure Vauclaire"
             Version="$(var.BundleVersion)"
-            Manufacturer="Murmure Hospital"
-            UpgradeCode="7F08032B-ECE6-40F1-8615-864F3EF3684C"
+            Manufacturer="Vauclaire"
+            UpgradeCode="49D2EE58-F6F8-4FD2-AED4-33775CCA651B"
             Compressed="yes"
             IconSourceFile="$(var.IconPath)">
         <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.RtfLicense">
@@ -24,20 +24,20 @@
              first to preserve the defaults on the first installation. -->
         <util:RegistrySearch Id="HospitalDesktopChoiceExists"
                              Variable="HOSPITAL_DESKTOP_SHORTCUT_EXISTS"
-                             Root="HKLM" Key="Software\Vauclaire\Murmure\Installer"
+                             Root="HKLM" Key="Software\Vauclaire\MurmureVauclaire\Installer"
                              Value="DesktopShortcut" Win64="yes" Result="exists" />
         <util:RegistrySearch Id="HospitalDesktopChoice"
                              Variable="HOSPITAL_DESKTOP_SHORTCUT"
-                             Root="HKLM" Key="Software\Vauclaire\Murmure\Installer"
+                             Root="HKLM" Key="Software\Vauclaire\MurmureVauclaire\Installer"
                              Value="DesktopShortcut" Win64="yes" Result="value" Format="raw"
                              After="HospitalDesktopChoiceExists" Condition="HOSPITAL_DESKTOP_SHORTCUT_EXISTS" />
         <util:RegistrySearch Id="HospitalStartupChoiceExists"
                              Variable="HOSPITAL_START_WITH_WINDOWS_EXISTS"
-                             Root="HKLM" Key="Software\Vauclaire\Murmure\Installer"
+                             Root="HKLM" Key="Software\Vauclaire\MurmureVauclaire\Installer"
                              Value="StartWithWindows" Win64="yes" Result="exists" />
         <util:RegistrySearch Id="HospitalStartupChoice"
                              Variable="HOSPITAL_START_WITH_WINDOWS"
-                             Root="HKLM" Key="Software\Vauclaire\Murmure\Installer"
+                             Root="HKLM" Key="Software\Vauclaire\MurmureVauclaire\Installer"
                              Value="StartWithWindows" Win64="yes" Result="value" Format="raw"
                              After="HospitalStartupChoiceExists" Condition="HOSPITAL_START_WITH_WINDOWS_EXISTS" />
 
@@ -76,7 +76,7 @@
             <!-- Do not launch Murmure under the installing administrator's profile. -->
             <MsiPackage Id="MurmureMsi"
                         SourceFile="$(var.MsiPath)"
-                        Name="Murmure.msi"
+                        Name="Murmure-Vauclaire.msi"
                         DisplayInternalUI="no"
                         Vital="yes"
                         Compressed="yes">

@@ -194,8 +194,9 @@ function Test-InstallerOptions {
     Assert-Condition ($executableDirectories.Count -eq 1 -and $executableDirectories[0].Directory -ceq 'INSTALLDIR') 'The main executable must belong to INSTALLDIR.'
     # MSI filenames may contain a short|long pair; Run must use the long name.
     $executableName = $executables[0].FileName.Split('|')[-1]
+    Assert-Condition ($executableName -ceq 'murmure-vauclaire.exe') 'The MSI must contain the Vauclaire executable.'
     $expectedRunCommand = '"[INSTALLDIR]' + $executableName + '" --autostart --hidden'
-    Assert-Condition ($run.Name -ceq 'MurmureHospital' -and $run.Value -ceq $expectedRunCommand) 'Autostart must quote the installed executable and start hidden without an ICE69 cross-component file reference.'
+    Assert-Condition ($run.Name -ceq 'MurmureVauclaire' -and $run.Value -ceq $expectedRunCommand) 'Autostart must quote the installed executable and start hidden without an ICE69 cross-component file reference.'
 
     $optionsQuery = 'SELECT `Root`, `Key`, `Name`, `Value` FROM `Registry` WHERE `Component_` = ''HospitalInstallerOptions'''
     $options = @(Read-MsiRows -Database $Database -Query $optionsQuery -Columns @('Root', 'Key', 'Name', 'Value'))
@@ -206,7 +207,7 @@ function Test-InstallerOptions {
         $matches = @($options | Where-Object { $_.Name -ceq $choice.Name })
         Assert-Condition ($matches.Count -eq 1) "The MSI must persist one machine choice: $($choice.Name)."
         $value = $matches[0]
-        Assert-Condition ($value.Root -ceq '2' -and $value.Key -ceq 'Software\Vauclaire\Murmure\Installer') 'Installer choices must be persisted for the whole machine.'
+        Assert-Condition ($value.Root -ceq '2' -and $value.Key -ceq 'Software\Vauclaire\MurmureVauclaire\Installer') 'Installer choices must be persisted for the whole machine.'
         # The MSI Registry table uses # to encode a DWORD before formatted property expansion.
         Assert-Condition ($value.Value -ceq ('#[' + $choice.Property + ']')) "The installer choice must persist its selected DWORD value: $($choice.Name)."
     }
@@ -220,6 +221,14 @@ try {
     $database = $installer.OpenDatabase($resolvedMsi, 0)
     Assert-Condition ((Read-MsiProperty -Database $database -Name 'ALLUSERS') -ceq '1') 'The MSI must install for all users (ALLUSERS=1).'
     Assert-Condition ((Read-MsiProperty -Database $database -Name 'ProductVersion') -ceq $ExpectedVersion) 'The MSI application version differs from the expected version.'
+    Assert-Condition ((Read-MsiProperty -Database $database -Name 'ProductName') -ceq 'Murmure Vauclaire') 'The MSI must use the Vauclaire product name.'
+    Assert-Condition ((Read-MsiProperty -Database $database -Name 'Manufacturer') -ceq 'Vauclaire') 'The MSI must use the Vauclaire publisher.'
+    Assert-Condition ((Read-MsiProperty -Database $database -Name 'ARPURLINFOABOUT') -ceq 'https://github.com/dev-vauclaire/murmure-hospital') 'The MSI must link to the hospital repository.'
+    Assert-Condition (([guid] (Read-MsiProperty -Database $database -Name 'UpgradeCode')) -eq [guid] '33486377-3BFB-432B-98EC-F55ACBFE6BB7') 'The MSI upgrade identity must remain fixed for Vauclaire releases.'
+    $installDirectoryQuery = 'SELECT `Directory_Parent`, `DefaultDir` FROM `Directory` WHERE `Directory` = ''INSTALLDIR'''
+    $installDirectories = @(Read-MsiRows -Database $database -Query $installDirectoryQuery -Columns @('Parent', 'Name'))
+    Assert-Condition ($installDirectories.Count -eq 1) 'Expected exactly one installation directory.'
+    Assert-Condition ($installDirectories[0].Parent -ceq 'ProgramFiles64Folder' -and $installDirectories[0].Name.Split('|')[-1] -ceq 'Murmure Vauclaire') 'The default directory must be the machine-wide Vauclaire directory.'
     Test-InstallerOptions -Database $database
     # Tauri must use the embedded standalone installer, never a network bootstrapper.
     $standaloneFound = $false
@@ -270,7 +279,7 @@ if ($specified -eq 4) {
     if ($LASTEXITCODE -ne 0) { throw 'WiX could not extract the generated setup.' }
     $container = Join-Path $WorkingDirectory 'AttachedContainer'
     foreach ($payload in @(
-        @{ Name = 'Murmure.msi'; Source = $resolvedMsi },
+        @{ Name = 'Murmure-Vauclaire.msi'; Source = $resolvedMsi },
         @{ Name = 'VC_redist.x64.exe'; Source = $vcRedist }
     )) {
         $matches = @(Get-ChildItem -LiteralPath $container -File -Recurse | Where-Object { $_.Name -ceq $payload.Name })

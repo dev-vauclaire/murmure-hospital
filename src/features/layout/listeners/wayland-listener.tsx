@@ -10,8 +10,8 @@ const unsubscribeAll = (promises: Promise<UnlistenFn>[]) => {
     });
 };
 
-/** Keep in sync with `packaging/linux/60-murmure-uinput.rules`. */
-const UINPUT_FIX_COMMAND = `sudo tee /etc/udev/rules.d/60-murmure-uinput.rules > /dev/null <<'EOF'
+/** Keep in sync with `packaging/linux/60-murmure-vauclaire-uinput.rules`. */
+const UINPUT_FIX_COMMAND = `sudo tee /etc/udev/rules.d/60-murmure-vauclaire-uinput.rules > /dev/null <<'EOF'
 KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", GROUP="input", MODE="0660", TAG+="uaccess"
 EOF
 sudo udevadm control --reload-rules
@@ -38,9 +38,7 @@ const InjectUnavailableBody = () => {
                     'Wayland keystroke injection is unavailable: Murmure could not open /dev/uinput. Until you apply the fix, the transcription is copied to the clipboard — press Ctrl+V to paste.'
                 )}
             </p>
-            <p className="text-xs text-muted-foreground">
-                {t('Run this in a terminal, then log out and back in:')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('Run this in a terminal, then log out and back in:')}</p>
             <pre className="text-[10px] bg-black/40 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">
                 {UINPUT_FIX_COMMAND}
             </pre>

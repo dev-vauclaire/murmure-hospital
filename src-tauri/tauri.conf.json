@@ -1,8 +1,8 @@
 {
     "$schema": "https://schema.tauri.app/config/2",
-    "productName": "murmure",
+    "productName": "Murmure Vauclaire",
     "version": "2.0.4",
-    "identifier": "com.al1x-ai.murmure",
+    "identifier": "lan.ch-vauclaire.murmure",
     "build": {
         "beforeDevCommand": "pnpm dev",
         "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
     "app": {
         "windows": [
             {
-                "title": "Murmure",
+                "title": "Murmure Vauclaire",
                 "width": 940,
                 "height": 768,
                 "minWidth": 890,
@@ -52,12 +52,9 @@
                 }
             },
             "deb": {
-                "recommends": [
-                    "wl-clipboard",
-                    "libgtk-layer-shell0"
-                ],
+                "recommends": ["wl-clipboard", "libgtk-layer-shell0"],
                 "files": {
-                    "/usr/lib/udev/rules.d/60-murmure-uinput.rules": "../packaging/linux/60-murmure-uinput.rules"
+                    "/usr/lib/udev/rules.d/60-murmure-vauclaire-uinput.rules": "../packaging/linux/60-murmure-vauclaire-uinput.rules"
                 },
                 "postInstallScript": "../packaging/linux/postinst",
                 "preRemoveScript": "../packaging/linux/prerm",
@@ -72,12 +69,9 @@
                     "pipewire-utils",
                     "xdg-desktop-portal"
                 ],
-                "recommends": [
-                    "gtk-layer-shell",
-                    "wl-clipboard"
-                ],
+                "recommends": ["gtk-layer-shell", "wl-clipboard"],
                 "files": {
-                    "/usr/lib/udev/rules.d/60-murmure-uinput.rules": "../packaging/linux/60-murmure-uinput.rules"
+                    "/usr/lib/udev/rules.d/60-murmure-vauclaire-uinput.rules": "../packaging/linux/60-murmure-vauclaire-uinput.rules"
                 },
                 "postInstallScript": "../packaging/linux/postinst",
                 "postRemoveScript": "../packaging/linux/postrm",
@@ -90,16 +84,11 @@
             "nsis": {
                 "installMode": "currentUser"
             }
-        }
+        },
+        "publisher": "Vauclaire",
+        "homepage": "https://github.com/dev-vauclaire/murmure-hospital",
+        "shortDescription": "Application de dictée vocale locale adaptée par Vauclaire",
+        "longDescription": "Murmure Vauclaire est une adaptation de Murmure réalisée par le service informatique de Vauclaire."
     },
-    "plugins": {
-        "updater": {
-            "active": true,
-            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNDRTZFRDczMzY2MzI5NDEKUldSQktXTTJjKzNtUEl6Q2htQ1AvcXlWVzExOG5wYWtLUjFYWVFWUCtnQU9Qb1o3RG03VmwzakkK",
-            "endpoints": ["https://github.com/Kieirra/murmure/releases/latest/download/latest.json"],
-            "windows": {
-                "installMode": "passive"
-            }
-        }
-    }
+    "mainBinaryName": "murmure-vauclaire"
 }

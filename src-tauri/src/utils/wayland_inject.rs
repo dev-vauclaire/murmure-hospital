@@ -1,6 +1,6 @@
 //! Bypass Wayland's cross-client injection ban via a long-lived
 //! /dev/uinput virtual keyboard. Needs the uinput kernel module and
-//! write access via packaging/linux/60-murmure-uinput.rules.
+//! write access via packaging/linux/60-murmure-vauclaire-uinput.rules.
 
 use crate::utils::wayland_xkb::types::{CharStrokes, KeyMapping};
 use input_linux::sys::{input_event, timeval, EV_MSC, MSC_SCAN};

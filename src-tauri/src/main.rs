@@ -26,9 +26,10 @@ fn setup_linux_env() {
     if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
-    // Must match the installed `.desktop` basename. Set before any
+    // Must match this distribution's installed `.desktop` basename and
+    // tauri.conf.json identifier. Set before any
     // Tauri thread spawns. `std::env::set_var` is not thread-safe.
     if std::env::var_os("GLOBAL_HOTKEY_APP_ID").is_none() {
-        std::env::set_var("GLOBAL_HOTKEY_APP_ID", "com.al1x-ai.murmure");
+        std::env::set_var("GLOBAL_HOTKEY_APP_ID", "lan.ch-vauclaire.murmure");
     }
 }

@@ -7,7 +7,7 @@ export const TrayMenuI18nListener = () => {
 
     useEffect(() => {
         invoke('set_tray_menu_labels', {
-            show: t('Open Murmure'),
+            show: t('Open Murmure Vauclaire'),
             copyLastTranscript: t('Copy last transcript'),
             quit: t('Quit'),
         }).catch((error) => {

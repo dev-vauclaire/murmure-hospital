@@ -64,7 +64,7 @@ class InstallerOptions(unittest.TestCase):
         value = component.find("w:RegistryValue", NS)
         self.assertEqual(value.get("Root"), "HKLM")
         self.assertEqual(value.get("Key"), r"Software\Microsoft\Windows\CurrentVersion\Run")
-        self.assertEqual(value.get("Name"), "MurmureHospital")
+        self.assertEqual(value.get("Name"), "MurmureVauclaire")
         self.assertEqual(value.get("Value"), '"[INSTALLDIR]{{main_binary_name}}.exe" --autostart --hidden')
         self.assertEqual(value.get("KeyPath"), "yes")
 
@@ -75,8 +75,8 @@ class InstallerOptions(unittest.TestCase):
         # component's file. Directory properties avoid that ownership issue.
         self.assertNotRegex(command, r"\[(?:#|!|\$)[^\]]+\]")
         for directory, binary in (
-            ("C:\\Program Files\\Murmure\\", "murmure"),
-            ("D:\\Applications locales\\Murmure\\", "murmure-hopital"),
+            ("C:\\Program Files\\Murmure Vauclaire\\", "murmure-vauclaire"),
+            ("D:\\Applications locales\\Murmure Vauclaire\\", "murmure-vauclaire"),
         ):
             with self.subTest(directory=directory, binary=binary):
                 rendered = command.replace("{{main_binary_name}}", binary).replace("[INSTALLDIR]", directory)
@@ -87,7 +87,7 @@ class InstallerOptions(unittest.TestCase):
         self.assertEqual(component.get("Win64"), "$(var.Win64)")
         key = component.find("w:RegistryKey", NS)
         self.assertEqual(key.get("Root"), "HKLM")
-        self.assertEqual(key.get("Key"), r"Software\Vauclaire\Murmure\Installer")
+        self.assertEqual(key.get("Key"), r"Software\Vauclaire\MurmureVauclaire\Installer")
         values = {v.get("Name"): (v.get("Type"), v.get("Value")) for v in key}
         self.assertEqual(values, {
             "DesktopShortcut": ("integer", "[HOSPITAL_DESKTOP_SHORTCUT]"),

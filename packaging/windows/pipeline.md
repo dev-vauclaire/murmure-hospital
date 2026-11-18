@@ -1,8 +1,27 @@
-# Comprendre le build Windows hospitalier
+# Comprendre le build Windows Vauclaire
 
-Le workflow `Build Windows hospitalier` fabrique un seul installateur :
-`Murmure-Hospital-Setup.exe`, pour Windows x64 et tous les utilisateurs du poste.
-Le MSI de Murmure, Visual C++ x64 et WebView2 sont contenus dans ce setup.
+Le workflow `Build Windows Vauclaire` fabrique un seul installateur :
+`Murmure-Vauclaire-Setup.exe`, pour Windows x64 et tous les utilisateurs du poste.
+Le MSI de Murmure Vauclaire, Visual C++ x64 et WebView2 sont contenus dans ce setup.
+
+## Identité de la distribution
+
+Le produit Windows est **Murmure Vauclaire**, édité par **Vauclaire**. Son exécutable
+est `murmure-vauclaire.exe`, installé par défaut dans
+`C:\Program Files\Murmure Vauclaire\`. Chaque utilisateur conserve son propre
+profil dans `%APPDATA%\lan.ch-vauclaire.murmure\`.
+
+Cette distribution dispose d'une identité distincte de Murmure et des anciens
+builds de test. Elle ne migre pas leurs profils et ne cherche pas à les remplacer.
+Les identifiants suivants sont fixés pour les prochaines versions Vauclaire :
+
+- MSI : `33486377-3BFB-432B-98EC-F55ACBFE6BB7`, dans `tauri.setup.conf.json`.
+- Setup Burn : `49D2EE58-F6F8-4FD2-AED4-33775CCA651B`, dans `bootstrapper.wxs`.
+
+Conserver ces deux identifiants lors des mises à jour. La version de l'application
+reste alignée entre les manifestes JavaScript, Rust et Tauri. Les futures mises à
+jour de l'application passeront par un nouveau setup validé ; le mécanisme de
+mise à jour intégré a été retiré.
 
 ## Pendant le build, sur GitHub
 
@@ -22,30 +41,30 @@ pendant le build et vérifiés avant d’être incorporés. La CI ne les install
 
 Burn vérifie et installe Visual C++ si nécessaire, puis lance le MSI.
 Le MSI utilise la gestion native de Tauri pour installer WebView2 si absent,
-puis installer Murmure. Ces fichiers sont déjà embarqués : aucun téléchargement
+puis installer Murmure Vauclaire. Ces fichiers sont déjà embarqués : aucun téléchargement
 n’est nécessaire pour installer les prérequis. Une élévation administrateur est
 nécessaire. Les préférences restent dans le profil de chaque utilisateur.
-Un prérequis en échec bloque l’installation de l’application. Désinstaller Murmure
+Un prérequis en échec bloque l’installation de l’application. Désinstaller Murmure Vauclaire
 conserve les runtimes partagés. Le MSI interne ne doit pas être lancé séparément.
 
 ## Les deux choix proposés dans le setup
 
-| Option                                          | Premier lancement du setup | Effet                                                                              |
-| ----------------------------------------------- | -------------------------- | ---------------------------------------------------------------------------------- |
-| Créer un raccourci sur le Bureau                | Cochée                     | Ajoute le raccourci au bureau public, accessible à tous les comptes.               |
-| Lancer Murmure à l'ouverture de session Windows | Décochée                   | Ajoute un démarrage à la connexion pour tous les comptes, avec la fenêtre masquée. |
+| Option                                                    | Premier lancement du setup | Effet                                                                              |
+| --------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------------------------- |
+| Créer un raccourci sur le Bureau                          | Cochée                     | Ajoute le raccourci au bureau public, accessible à tous les comptes.               |
+| Lancer Murmure Vauclaire à l'ouverture de session Windows | Décochée                   | Ajoute un démarrage à la connexion pour tous les comptes, avec la fenêtre masquée. |
 
 Les cases apparaissent avant le bouton Installer. Les choix sont enregistrés dans
-`HKLM\Software\Vauclaire\Murmure\Installer` (vue 64 bits), puis relus par le setup
+`HKLM\Software\Vauclaire\MurmureVauclaire\Installer` (vue 64 bits), puis relus par le setup
 suivant. Une mise à jour conserve donc les choix, qui restent modifiables avant
 l'installation. Une réparation depuis le setup reprend les valeurs enregistrées.
 
 Le MSI crée ou retire les composants correspondants. Le démarrage automatique
-utilise la valeur `MurmureHospital` dans
+utilise la valeur `MurmureVauclaire` dans
 `HKLM\Software\Microsoft\Windows\CurrentVersion\Run`, avec les arguments
 `--autostart --hidden`. La désinstallation supprime cette valeur et les choix
 d'installation. Elle ne modifie pas un éventuel démarrage personnel préexistant
-dans HKCU. Murmure n'est pas lancé à la fin de l'installation sous le compte
+dans HKCU. Murmure Vauclaire n'est pas lancé à la fin de l'installation sous le compte
 administrateur.
 
 ## Rôle des fichiers
@@ -74,11 +93,17 @@ python packaging/windows/prepare-installer-options.py
 Les notices du thème WiX adapté et du template Tauri sont conservées dans
 `licenses/wix3-MS-RL.txt` et `licenses/tauri-installer-MIT.txt`.
 
-`build-info.json` identifie notamment le commit, la version et les composants.
+`build-info.json` identifie notamment le commit, la version, les composants et
+l'identité du produit (nom, éditeur, identifiant Tauri, exécutable et identifiants
+de mise à jour MSI/Burn). La CI vérifie aussi les métadonnées et le nom du binaire
+directement dans le MSI produit.
 `SHA256SUMS.txt` permet de vérifier le setup téléchargé. L’installateur final reste
 non signé. Le workflow officiel `build-windows.yml` reste indépendant.
 
 ## Validation sur une VM
+
+La [liste de tests Windows](vm-validation.md) détaille les vérifications avant le
+premier déploiement auprès des utilisateurs.
 
 La réussite de la CI ne prouve pas qu’une installation fonctionne. Sur une VM
 Windows 11, couper Internet et tester les prérequis absents, présents et plus

@@ -1,10 +1,19 @@
 #!/bin/sh
-# Murmure post-remove hook (.deb / .rpm):
+# Murmure Vauclaire post-remove hook (.deb / .rpm):
 #   Reload udev rules after the package removal so the now-deleted
-#   60-murmure-uinput.rules no longer applies. Without this the rule
+#   60-murmure-vauclaire-uinput.rules no longer applies. Without this the rule
 #   stays loaded in the running udev daemon until the next reboot
 #   (cosmetic only — the file is gone, but udev's in-memory copy lingers).
 set -e
+
+# RPM removal does not run the .deb prerm hook. During RPM upgrades the old
+# post-remove hook runs after the new post-install hook, so keep the new entry.
+case "${1:-}" in
+    remove|purge|0)
+        rm -f /usr/share/applications/lan.ch-vauclaire.murmure.desktop
+        update-desktop-database /usr/share/applications/ 2>/dev/null || true
+        ;;
+esac
 
 if command -v udevadm >/dev/null 2>&1; then
     udevadm control --reload-rules

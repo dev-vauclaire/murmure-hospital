@@ -104,13 +104,11 @@ pub fn run() {
                 .level_for("enigo", log::LevelFilter::Info)
                 .level_for("reqwest", log::LevelFilter::Info)
                 .level_for("hyper_util", log::LevelFilter::Info)
-                .level_for("tauri_plugin_updater", log::LevelFilter::Info)
                 .level_for("arboard", log::LevelFilter::Info)
                 .build(),
         )
         .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_updater::Builder::new().build());
+        .plugin(tauri_plugin_dialog::init());
 
     if !is_transcribe {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
@@ -440,7 +438,6 @@ pub fn run() {
             set_show_in_dock,
             get_linux_session_type,
             get_linux_distro_info,
-            is_pacman_managed,
             get_output_volume_unsupported_reason,
             dismiss_wayland_notice,
             dismiss_wayland_clipboard_fallback,

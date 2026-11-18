@@ -385,7 +385,7 @@
     "Once <cmd>murmure --transcription</cmd> works, every other command below binds the same way.": "Une fois que <cmd>murmure --transcription</cmd> fonctionne, toutes les autres commandes se lient de la même manière.",
     "Once installed and running, test the connection.": "Une fois installé et en cours d'exécution, testez la connexion.",
     "Only single words or two-word pairs are allowed.": "Seuls les mots simples ou les paires de deux mots sont autorisés.",
-    "Open Murmure": "Ouvrir Murmure",
+    "Open Murmure Vauclaire": "Ouvrir Murmure Vauclaire",
     "Open Settings": "Ouvrir les paramètres",
     "OpenAI-compatible": "OpenAI compatible",
     "Optimized for low-end hardware": "Optimisé pour les PC anciens",
