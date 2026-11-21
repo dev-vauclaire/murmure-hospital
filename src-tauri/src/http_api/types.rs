@@ -16,6 +16,12 @@ pub struct TranscribeState {
     pub transcribe_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
+#[derive(Serialize)]
+pub(super) struct HealthResponse {
+    pub(super) service: &'static str,
+    pub(super) status: &'static str,
+}
+
 pub(super) struct CancelOnDrop(pub(super) Arc<AtomicBool>);
 
 impl Drop for CancelOnDrop {

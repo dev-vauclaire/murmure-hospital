@@ -748,6 +748,7 @@ fn transcribe_segment(app: &AppHandle, samples: Vec<f32>) -> anyhow::Result<Stri
                     .map_err(|e| anyhow::anyhow!("Failed to load model: {}", e))?;
 
             *engine_guard = Some(new_engine);
+            audio_state.mark_engine_ready();
             debug!("Model loaded for wake word detection");
         }
     }

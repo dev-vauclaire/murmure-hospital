@@ -1,3 +1,4 @@
+use super::health::health_handler;
 use super::prompt_mode::{
     custom_prompt_handler, prompt_mode_prompts_handler, saved_prompt_handler,
 };
@@ -127,6 +128,7 @@ pub async fn start_http_api(
     };
 
     let router = Router::new()
+        .route("/api/health", get(health_handler))
         .route("/api/transcribe", post(transcribe_handler))
         .route("/api/prompt-mode/custom", post(custom_prompt_handler))
         .route("/api/prompt-mode", post(saved_prompt_handler))

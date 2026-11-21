@@ -23,6 +23,8 @@ pub struct PreviewSnapshot {
 pub struct AudioState {
     pub recorder: Mutex<Option<AudioRecorder>>,
     pub engine: Mutex<Option<ParakeetEngine>>,
+    /// Readiness must remain observable while inference holds the engine lock.
+    engine_ready: AtomicBool,
     pub current_file_name: Mutex<Option<String>>,
     recording_mode: AtomicU8,
     recording_trigger: AtomicU8,
@@ -93,6 +95,7 @@ impl AudioState {
         Self {
             recorder: Mutex::new(None),
             engine: Mutex::new(None),
+            engine_ready: AtomicBool::new(false),
             current_file_name: Mutex::new(None),
             recording_mode: AtomicU8::new(RecordingMode::Standard as u8),
             recording_trigger: AtomicU8::new(RecordingTrigger::Keyboard as u8),
@@ -106,6 +109,15 @@ impl AudioState {
             session_gen: AtomicU64::new(0),
             session_active: AtomicBool::new(false),
         }
+    }
+
+    pub(crate) fn is_engine_ready(&self) -> bool {
+        self.engine_ready.load(Ordering::Acquire)
+    }
+
+    /// Call only after a successfully loaded engine has been installed.
+    pub(crate) fn mark_engine_ready(&self) {
+        self.engine_ready.store(true, Ordering::Release);
     }
 
     pub fn begin_session(&self) -> u64 {
@@ -162,4 +174,55 @@ pub(super) enum RecorderStartError {
     InitFailed,
     StartFailed,
     Superseded,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AudioState;
+    use std::sync::{mpsc, Arc};
+    use std::time::Duration;
+
+    #[test]
+    fn engine_readiness_starts_false_and_is_marked_after_loading() {
+        let state = AudioState::new();
+        assert!(!state.is_engine_ready());
+
+        state.mark_engine_ready();
+        assert!(state.is_engine_ready());
+
+        state.mark_engine_ready();
+        assert!(state.is_engine_ready());
+    }
+
+    #[test]
+    fn engine_readiness_is_independent_of_recording_sessions() {
+        let state = AudioState::new();
+        state.mark_engine_ready();
+
+        state.begin_session();
+        state.set_session_active(true);
+        assert!(state.is_engine_ready());
+
+        state.invalidate_session();
+        state.set_session_active(false);
+        assert!(state.is_engine_ready());
+    }
+
+    #[test]
+    fn engine_readiness_does_not_wait_for_the_engine_lock() {
+        let state = Arc::new(AudioState::new());
+        state.mark_engine_ready();
+        let engine_guard = state.engine.lock();
+        let (sender, receiver) = mpsc::channel();
+        let reader_state = state.clone();
+        let reader = std::thread::spawn(move || {
+            let _ = sender.send(reader_state.is_engine_ready());
+        });
+
+        let readiness = receiver.recv_timeout(Duration::from_secs(2));
+        // Release before joining so a regression cannot leave the test blocked.
+        drop(engine_guard);
+        reader.join().expect("readiness reader should complete");
+        assert_eq!(readiness, Ok(true));
+    }
 }

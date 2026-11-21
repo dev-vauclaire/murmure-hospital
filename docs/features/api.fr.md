@@ -14,6 +14,31 @@ L'API tourne tant que Murmure est ouvert. La page affiche l'état du serveur. Si
 
 La même page documente chaque endpoint avec sa commande `curl`, ses champs et un exemple de réponse. Un bouton **Essayer** envoie une vraie requête à l'API depuis la page, ce qui permet de tester un endpoint avec un fichier WAV sans écrire de code. Le résultat d'un test n'est pas enregistré et disparaît quand vous quittez la page.
 
+## Disponibilité du moteur — distribution Vauclaire
+
+**GET** `http://127.0.0.1:4800/api/health`
+
+Cette route permet à une autre application de vérifier si le moteur de transcription est chargé, sans envoyer d'audio.
+
+```bash
+curl --noproxy '*' --max-time 2 -i http://127.0.0.1:4800/api/health
+```
+
+| HTTP  | Réponse JSON                                           | Signification                                                               |
+| ----- | ------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `200` | `{"service":"murmure Vauclaire","status":"ready"}`     | Le moteur est chargé, même si une transcription est en cours.               |
+| `503` | `{"service":"murmure Vauclaire","status":"not_ready"}` | Le moteur n'est pas encore chargé, son chargement est en cours ou a échoué. |
+
+Le champ `service` respecte exactement cette casse. Les réponses portent l'en-tête `Cache-Control: no-store`.
+
+Le contrôle ne prend pas le verrou du moteur, ne déclenche aucun chargement ni transcription, et ne modifie pas la file d'attente. Il indique que le modèle est chargé ; il ne garantit pas le succès de chaque futur fichier audio ni l'absence de blocage interne du moteur.
+
+L'API reste désactivée par défaut et écoute uniquement sur `127.0.0.1`. Si elle est désactivée ou si Murmure est fermé, aucune réponse HTTP n'est disponible : le client doit distinguer ce cas du statut `503`.
+
+Dans la distribution Vauclaire, l'écran **Extensions > API locale** est masqué. Pour activer l'API dans un profil de test, fermez complètement Murmure, définissez `"api_enabled": true` et `"api_port": 4800` dans son `settings.json`, puis relancez l'application. Sous Windows, ce fichier se trouve dans `%APPDATA%\lan.ch-vauclaire.murmure\settings.json`. Si un autre port est configuré, adaptez l'URL du client.
+
+Après correction d'un problème de modèle, relancez Murmure pour réessayer son chargement. Un appel à `/api/health` ne déclenche pas cette opération.
+
 ## Transcription
 
 **POST** `http://127.0.0.1:4800/api/transcribe`

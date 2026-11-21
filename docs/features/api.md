@@ -14,6 +14,31 @@ The API runs as long as Murmure is open. The page shows the server status. If th
 
 The same page documents each endpoint with its `curl` command, its fields and an example response. A **Try it** button sends a real request to the API from the page, so you can test an endpoint with a WAV file without writing any code. The result of a test is not saved and disappears when you leave the page.
 
+## Engine readiness — Vauclaire distribution
+
+**GET** `http://127.0.0.1:4800/api/health`
+
+This endpoint lets another application check whether the transcription engine is loaded without sending audio.
+
+```bash
+curl --noproxy '*' --max-time 2 -i http://127.0.0.1:4800/api/health
+```
+
+| HTTP  | JSON response                                          | Meaning                                                               |
+| ----- | ------------------------------------------------------ | --------------------------------------------------------------------- |
+| `200` | `{"service":"murmure Vauclaire","status":"ready"}`     | The engine is loaded, including while a transcription is in progress. |
+| `503` | `{"service":"murmure Vauclaire","status":"not_ready"}` | The engine has not loaded yet, is loading, or failed to load.         |
+
+The `service` field is case-sensitive. Responses include `Cache-Control: no-store`.
+
+The check does not acquire the engine lock, load the model, start a transcription, or change the work queue. It reports that the model is loaded; it does not guarantee that every future audio file will succeed or detect an engine that becomes stuck internally.
+
+The API remains disabled by default and only listens on `127.0.0.1`. If it is disabled or Murmure is closed, no HTTP response is available: clients must distinguish this case from a `503` response.
+
+In the Vauclaire distribution, **Extensions > Local API** is hidden. To enable the API in a test profile, fully quit Murmure, set `"api_enabled": true` and `"api_port": 4800` in that profile's `settings.json`, then restart the application. On Windows, the file is located at `%APPDATA%\lan.ch-vauclaire.murmure\settings.json`. Adjust the client URL if another port is configured.
+
+After fixing a model issue, restart Murmure to retry loading it. A call to `/api/health` does not trigger that operation.
+
 ## Transcribe
 
 **POST** `http://127.0.0.1:4800/api/transcribe`

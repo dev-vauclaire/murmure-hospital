@@ -395,6 +395,7 @@ pub fn preload_engine(app: &AppHandle) -> Result<()> {
             .map_err(|e| anyhow::anyhow!("Failed to load model: {}", e))?;
 
         *engine = Some(new_engine);
+        state.mark_engine_ready();
         info!("Model loaded and cached in memory");
     }
 

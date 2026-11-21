@@ -165,10 +165,10 @@ jobs:
             - name: Build SmartMic resources
               run: pnpm.cmd build:smartmic
 
-            - name: Test hospital defaults and SpeechMike protocol
+            - name: Test hospital defaults, SpeechMike and local API
               working-directory: src-tauri
               run: |
-                  foreach ($testFilter in @('settings::', 'dictionary::store::', 'formatting_rules::store::', 'utils::defaults::', 'speechmike::', 'shortcuts::', 'cli::cli::tests::speechmike_diagnostic')) {
+                  foreach ($testFilter in @('settings::', 'dictionary::store::', 'formatting_rules::store::', 'utils::defaults::', 'speechmike::', 'shortcuts::', 'cli::cli::tests::speechmike_diagnostic', 'http_api::', 'audio::types::')) {
                       cargo test --locked --lib $testFilter
                       if ($LASTEXITCODE -ne 0) {
                           throw "Hospital defaults tests failed: $testFilter"
