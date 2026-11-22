@@ -1,0 +1,267 @@
+name: Diagnose Windows test loader
+run-name: Diagnose Windows DLL loading before and after healthcheck
+
+on:
+    workflow_dispatch:
+    # Bootstrap this new workflow without changing the repository's default branch.
+    push:
+        branches: ['feature/windows-loader-diagnostic']
+        paths:
+            - '.github/workflows/diagnose-hospital-windows.yml'
+            - 'packaging/windows/diagnose-test-loader.ps1'
+            - 'packaging/windows/test-loader-diagnostic.py'
+
+permissions:
+    contents: read
+
+jobs:
+    diagnose-loader:
+        runs-on: windows-2022
+        timeout-minutes: 75
+        defaults:
+            run:
+                shell: pwsh
+
+        steps:
+            - name: Checkout diagnostic tools
+              uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Check diagnostic contracts
+              run: |
+                  $tokens = $null
+                  $parseErrors = $null
+                  [System.Management.Automation.Language.Parser]::ParseFile(
+                      (Join-Path $env:GITHUB_WORKSPACE 'packaging/windows/diagnose-test-loader.ps1'),
+                      [ref] $tokens, [ref] $parseErrors) | Out-Null
+                  if ($parseErrors.Count -gt 0) { throw ($parseErrors | Out-String) }
+                  python packaging/windows/test-loader-diagnostic.py
+                  if ($LASTEXITCODE -ne 0) { throw 'Diagnostic safety contract checks failed.' }
+
+            - name: Set up Node.js
+              uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+              with:
+                  node-version: '22'
+
+            - name: Set up the original Rust toolchain
+              uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
+              with:
+                  toolchain: '1.98.1'
+                  targets: x86_64-pc-windows-msvc
+
+            - name: Prepare NASM for native dependencies
+              run: |
+                  $nasm = Get-Command nasm.exe -ErrorAction SilentlyContinue
+                  if (-not $nasm) {
+                      choco install nasm --yes --no-progress --limit-output
+                      if ($LASTEXITCODE -ne 0) { throw 'NASM installation failed.' }
+                      $nasmExecutable = Join-Path $env:ProgramFiles 'NASM/nasm.exe'
+                      if (-not (Test-Path -LiteralPath $nasmExecutable -PathType Leaf)) { throw 'NASM executable was not found.' }
+                      (Split-Path -Parent $nasmExecutable) | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+                      & $nasmExecutable -v
+                  } else {
+                      & $nasm.Source -v
+                  }
+                  if ($LASTEXITCODE -ne 0) { throw 'NASM could not be executed.' }
+
+            # Keep the executable/DLL observations independent of restored target caches.
+            - name: Prepare comparison sources
+              id: sources
+              run: |
+                  $beforeCommit = '4d30219d4d69b2d2bc2366127277b8b2e7f80795'
+                  $afterCommit = 'd5e382cee4dbdeb312a3492271d5782cdae98528'
+                  $beforeSource = Join-Path $env:RUNNER_TEMP 'murmure-source-before'
+                  $afterSource = Join-Path $env:RUNNER_TEMP 'murmure-source-after'
+                  git worktree add --detach $beforeSource $beforeCommit
+                  if ($LASTEXITCODE -ne 0) { throw 'Could not prepare the source before healthcheck.' }
+                  git worktree add --detach $afterSource $afterCommit
+                  if ($LASTEXITCODE -ne 0) { throw 'Could not prepare the source after healthcheck.' }
+                  foreach ($manifest in @('src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'package.json', 'pnpm-lock.yaml')) {
+                      $beforeHash = (Get-FileHash -LiteralPath (Join-Path $beforeSource $manifest) -Algorithm SHA256).Hash
+                      $afterHash = (Get-FileHash -LiteralPath (Join-Path $afterSource $manifest) -Algorithm SHA256).Hash
+                      if ($beforeHash -ne $afterHash) { throw "The comparison has different dependency manifests: $manifest" }
+                  }
+                  New-Item -ItemType Directory -Path 'loader-diagnostics' -ErrorAction Stop | Out-Null
+                  [ordered]@{
+                      before_commit = $beforeCommit
+                      after_commit = $afterCommit
+                      rust_toolchain = '1.98.1'
+                      runner = 'windows-2022'
+                      target_cache_restored = $false
+                  } | ConvertTo-Json | Set-Content -LiteralPath 'loader-diagnostics/comparison.json' -Encoding utf8
+
+            - name: Locate existing inspection tools
+              id: inspection
+              run: |
+                  $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+                  $vsDirectory = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+                  if ($LASTEXITCODE -ne 0 -or -not $vsDirectory) { throw 'Visual C++ inspection tools were not found.' }
+                  $msvcVersion = (Get-Content -LiteralPath (Join-Path $vsDirectory 'VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt') -Raw).Trim()
+                  $dumpbin = Join-Path $vsDirectory "VC/Tools/MSVC/$msvcVersion/bin/Hostx64/x64/dumpbin.exe"
+                  if (-not (Test-Path -LiteralPath $dumpbin -PathType Leaf)) { throw 'dumpbin.exe was not found.' }
+                  $sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits/10'
+                  $mt = Get-ChildItem -Path "$sdkRoot/bin/*/x64/mt.exe" -File -ErrorAction SilentlyContinue |
+                      Sort-Object { [version] $_.Directory.Parent.Name } -Descending | Select-Object -First 1
+                  [ordered]@{
+                      dumpbin = $dumpbin
+                      mt = if ($mt) { $mt.FullName } else { '' }
+                  } | ConvertTo-Json | Set-Content -LiteralPath 'loader-diagnostics/inspection-tools.json' -Encoding utf8
+
+            - name: Prepare required frontend resources
+              id: frontend
+              run: |
+                  npm.cmd install -g pnpm@10.19.0 --ignore-scripts
+                  if ($LASTEXITCODE -ne 0) { throw 'pnpm installation failed.' }
+                  pnpm.cmd install --frozen-lockfile --ignore-scripts
+                  if ($LASTEXITCODE -ne 0) { throw 'Frontend dependency preparation failed.' }
+                  pnpm.cmd build:smartmic
+                  if ($LASTEXITCODE -ne 0) { throw 'SmartMic resource build failed.' }
+                  foreach ($label in @('before', 'after')) {
+                      $source = Join-Path $env:RUNNER_TEMP "murmure-source-$label"
+                      $resourceDirectory = Join-Path $source 'src-tauri/resources/smartmic'
+                      New-Item -ItemType Directory -Path $resourceDirectory -Force -ErrorAction Stop | Out-Null
+                      Copy-Item -Path 'src-tauri/resources/smartmic/*' -Destination $resourceDirectory -Recurse -ErrorAction Stop
+                  }
+
+            # --list loads the test executable, but never runs audio or transcription tests.
+            # Observe both binaries BEFORE installing any additional debugger/runtime tools.
+            - name: Observe the executable before healthcheck
+              id: before
+              if: ${{ always() && steps.sources.outcome == 'success' && steps.inspection.outcome == 'success' && steps.frontend.outcome == 'success' }}
+              continue-on-error: true
+              env:
+                  CARGO_TARGET_DIR: ${{ runner.temp }}/murmure-target-before
+              run: |
+                  $tools = Get-Content -LiteralPath 'loader-diagnostics/inspection-tools.json' -Raw | ConvertFrom-Json
+                  & ./packaging/windows/diagnose-test-loader.ps1 -Label 'before' `
+                      -SourceDirectory (Join-Path $env:RUNNER_TEMP 'murmure-source-before') `
+                      -OutputDirectory (Join-Path $env:GITHUB_WORKSPACE 'loader-diagnostics/before') `
+                      -DumpbinPath $tools.dumpbin -MtPath $tools.mt
+
+            - name: Observe the executable after healthcheck
+              id: after
+              if: ${{ always() && steps.sources.outcome == 'success' && steps.inspection.outcome == 'success' && steps.frontend.outcome == 'success' }}
+              continue-on-error: true
+              env:
+                  CARGO_TARGET_DIR: ${{ runner.temp }}/murmure-target-after
+              run: |
+                  $tools = Get-Content -LiteralPath 'loader-diagnostics/inspection-tools.json' -Raw | ConvertFrom-Json
+                  & ./packaging/windows/diagnose-test-loader.ps1 -Label 'after' `
+                      -SourceDirectory (Join-Path $env:RUNNER_TEMP 'murmure-source-after') `
+                      -OutputDirectory (Join-Path $env:GITHUB_WORKSPACE 'loader-diagnostics/after') `
+                      -DumpbinPath $tools.dumpbin -MtPath $tools.mt
+
+            - name: Prepare debugger tools after initial observations
+              id: debuggers
+              if: ${{ always() && steps.before.outcome != 'skipped' && steps.after.outcome != 'skipped' }}
+              continue-on-error: true
+              run: |
+                  $needsTrace = $false
+                  foreach ($label in @('before', 'after')) {
+                      $summaryPath = "loader-diagnostics/$label/summary.json"
+                      if (Test-Path -LiteralPath $summaryPath -PathType Leaf) {
+                          $observation = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json
+                          if ($null -ne $observation.executable -and
+                              (($null -ne $observation.cargo_list_exit_code -and $observation.cargo_list_exit_code -ne 0) -or
+                               ($null -ne $observation.list_exit_code -and $observation.list_exit_code -ne 0))) {
+                              $needsTrace = $true
+                          }
+                      }
+                  }
+                  if (-not $needsTrace) {
+                      [ordered]@{ cdb = ''; gflags = ''; status = 'not_required'; sdk_installer = $null } |
+                          ConvertTo-Json | Set-Content -LiteralPath 'loader-diagnostics/debugger-tools.json' -Encoding utf8
+                      return
+                  }
+                  $debuggers = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits/10/Debuggers/x64'
+                  $cdb = Join-Path $debuggers 'cdb.exe'
+                  $gflags = Join-Path $debuggers 'gflags.exe'
+                  $installerInfo = $null
+                  if (-not (Test-Path -LiteralPath $cdb) -or -not (Test-Path -LiteralPath $gflags)) {
+                      $sdk = Get-ItemProperty 'HKLM:/SOFTWARE/WOW6432Node/Microsoft/Windows/CurrentVersion/Uninstall/*' -ErrorAction SilentlyContinue |
+                          Where-Object { $_.DisplayName -match '^Windows Software Development Kit' -and $_.BundleCachePath -and (Test-Path -LiteralPath $_.BundleCachePath -PathType Leaf) } |
+                          Sort-Object { [version] $_.DisplayVersion } -Descending | Select-Object -First 1
+                      if ($sdk) {
+                          $installer = $sdk.BundleCachePath
+                      } else {
+                          $installer = Join-Path $env:RUNNER_TEMP 'murmure-debuggers-sdksetup.exe'
+                          Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2349110' -OutFile $installer -ErrorAction Stop
+                      }
+                      $signature = Get-AuthenticodeSignature -LiteralPath $installer
+                      if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'CN=Microsoft Corporation(?:,|$)') {
+                          throw 'The SDK installer does not have a valid Microsoft signature.'
+                      }
+                      $installerInfo = [ordered]@{
+                          version = (Get-Item -LiteralPath $installer).VersionInfo.FileVersion
+                          sha256 = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+                          signer = $signature.SignerCertificate.Subject
+                      }
+                      $installProcess = Start-Process -FilePath $installer -ArgumentList @('/features', 'OptionId.WindowsDesktopDebuggers', '/q', '/norestart', '/ceip', 'off') -PassThru
+                      if (-not $installProcess.WaitForExit(300000)) {
+                          $installProcess.Kill($true)
+                          throw 'SDK debugger installation exceeded five minutes.'
+                      }
+                      if ($installProcess.ExitCode -notin @(0, 3010)) { throw "SDK debugger installation failed: $($installProcess.ExitCode)" }
+                  }
+                  if (-not (Test-Path -LiteralPath $cdb -PathType Leaf) -or -not (Test-Path -LiteralPath $gflags -PathType Leaf)) {
+                      throw 'CDB/GFlags are unavailable; initial observations remain in the artifact.'
+                  }
+                  [ordered]@{ cdb = $cdb; gflags = $gflags; status = 'available'; sdk_installer = $installerInfo } |
+                      ConvertTo-Json -Depth 5 | Set-Content -LiteralPath 'loader-diagnostics/debugger-tools.json' -Encoding utf8
+
+            - name: Capture loader traces for failed executables
+              if: ${{ always() && steps.debuggers.outcome == 'success' }}
+              continue-on-error: true
+              run: |
+                  $inspection = Get-Content -LiteralPath 'loader-diagnostics/inspection-tools.json' -Raw | ConvertFrom-Json
+                  $debuggers = Get-Content -LiteralPath 'loader-diagnostics/debugger-tools.json' -Raw | ConvertFrom-Json
+                  foreach ($label in @('before', 'after')) {
+                      $output = Join-Path $env:GITHUB_WORKSPACE "loader-diagnostics/$label"
+                      if (Test-Path -LiteralPath (Join-Path $output 'summary.json') -PathType Leaf) {
+                          try {
+                              $env:CARGO_TARGET_DIR = Join-Path $env:RUNNER_TEMP "murmure-target-$label"
+                              & ./packaging/windows/diagnose-test-loader.ps1 -TraceOnly -Label $label `
+                                  -SourceDirectory (Join-Path $env:RUNNER_TEMP "murmure-source-$label") `
+                                  -OutputDirectory $output -DumpbinPath $inspection.dumpbin -MtPath $inspection.mt `
+                                  -CdbPath $debuggers.cdb -GflagsPath $debuggers.gflags
+                          } catch {
+                              Write-Warning "Loader tracing failed for $label; initial observations are preserved."
+                          }
+                      }
+                  }
+
+            - name: Summarize observations
+              if: ${{ always() }}
+              run: |
+                  '## Windows test loader diagnostic' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+                  'This workflow collects startup evidence; it does not validate an installer.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+                  $incomplete = $false
+                  foreach ($label in @('before', 'after')) {
+                      $summaryPath = "loader-diagnostics/$label/summary.json"
+                      if (Test-Path -LiteralPath $summaryPath -PathType Leaf) {
+                          $summary = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json
+                          "- ${label}: compile exit $($summary.compile_exit_code); Cargo --list exit $($summary.cargo_list_exit_code); direct --list exit $($summary.list_exit_code_hex); trace $($summary.loader_trace.status)." |
+                              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+                          if ($null -eq $summary.compile_exit_code -or $summary.compile_exit_code -ne 0 -or
+                              $null -eq $summary.cargo_list_exit_code -or $null -eq $summary.list_exit_code -or
+                              $summary.instrumentation_error) {
+                              $incomplete = $true
+                          }
+                      } else {
+                          $incomplete = $true
+                          "- ${label}: no executable observation available; inspect failed preparation steps." |
+                              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+                      }
+                  }
+                  if ($incomplete) { throw 'The controlled comparison is incomplete; see diagnostic artifacts.' }
+
+            - name: Upload diagnostic evidence
+              if: ${{ always() }}
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+              with:
+                  name: murmure-windows-loader-diagnostic-${{ github.run_id }}
+                  path: loader-diagnostics/
+                  retention-days: 7
+                  if-no-files-found: warn
