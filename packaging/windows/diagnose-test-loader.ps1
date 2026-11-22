@@ -245,7 +245,8 @@ sxe -c ".lastevent; .exr -1; lmf; q" 0xc0000135
 sxe -c ".lastevent; .exr -1; lmf; q" 0xc000007b
 g
 '@ | Set-Content -LiteralPath $commandPath -Encoding ascii
-        $runnerArguments = @($Cdb, '-G', '-nosqm', '-noshell', '-sins', '-netsyms', 'no',
+        # Explicit local symbols avoid SDK versions parsing "no" as the debuggee.
+        $runnerArguments = @($Cdb, '-G', '-nosqm', '-noshell', '-sins', '-y', $Destination,
             '-logo', $trace.log_path, '-cf', $commandPath)
         $runnerJson = ConvertTo-Json -InputObject $runnerArguments -Compress
         $runnerConfig = "target.x86_64-pc-windows-msvc.runner=$runnerJson"
