@@ -48,7 +48,7 @@ jobs:
 
             - name: Check Windows packaging scripts
               run: |
-                  python scripts/test-hospital-identity.py
+                  python packaging/windows-nsis/scripts/test-hospital-identity.py
                   if ($LASTEXITCODE -ne 0) {
                       throw 'Hospital identity checks failed.'
                   }
