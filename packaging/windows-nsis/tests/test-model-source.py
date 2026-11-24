@@ -7,6 +7,7 @@ from pathlib import Path
 import stat
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 import zipfile
 
 
@@ -32,7 +33,11 @@ class VerifiedModel(unittest.TestCase):
                 if filename != omit:
                     archive.writestr(f"{MODEL.MODEL_DIRECTORY}/{filename}", b"synthetic model")
             if extra is not None:
-                archive.writestr(extra, b"synthetic extra")
+                entry = zipfile.ZipInfo(extra)
+                # Keep the unsafe name in the archive even on Windows, where
+                # ZipInfo normally replaces backslashes before writing it.
+                entry.filename = extra
+                archive.writestr(entry, b"synthetic extra")
         return hashlib.sha256(self.archive.read_bytes()).hexdigest()
 
     def test_verified_archive_extracts_the_required_files(self):
@@ -53,9 +58,20 @@ class VerifiedModel(unittest.TestCase):
         for name in ("../escape", "/absolute", "C:/escape", "..\\escape", "folder\\escape", "file:stream"):
             with self.subTest(name=name):
                 digest = self.write_archive(extra=name)
+                with zipfile.ZipFile(self.archive) as archive:
+                    self.assertIn(name, {member.orig_filename for member in archive.infolist()})
                 with self.assertRaisesRegex(ValueError, "unsafe path"):
                     MODEL.verify_and_extract_archive(self.archive, digest, self.resources)
                 self.assertFalse((self.resources / MODEL.MODEL_DIRECTORY).exists())
+
+    def test_unsafe_fixture_preserves_its_raw_name_with_windows_separators(self):
+        with patch.object(zipfile.os, "sep", "\\"):
+            digest = self.write_archive(extra="folder\\escape")
+            with zipfile.ZipFile(self.archive) as archive:
+                self.assertIn("folder\\escape", {member.orig_filename for member in archive.infolist()})
+            with self.assertRaisesRegex(ValueError, "unsafe path"):
+                MODEL.verify_and_extract_archive(self.archive, digest, self.resources)
+        self.assertFalse((self.resources / MODEL.MODEL_DIRECTORY).exists())
 
     def test_symlink_is_rejected_before_extraction(self):
         self.write_archive()

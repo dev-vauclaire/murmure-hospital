@@ -32,9 +32,11 @@ Le workflow `Windows Vauclaire - NSIS minimal` est défini dans
 | Pull request                          | Exécutés           | Ignorées                              |
 | Lancement manuel                      | Exécutés           | Après réussite des contrôles et tests |
 
-Le lancement manuel sera disponible une fois ce nouveau workflow présent sur la
-branche par défaut de GitHub. Chaque lancement manuel rejoue les tests sur le
-même commit ; aucun ancien résultat de CI n'est réutilisé.
+Après publication, le workflow peut être lancé manuellement dans GitHub Actions
+en sélectionnant la branche `refactor/windows-packaging`. Le premier lancement
+sur cette branche a été vérifié sans fusion dans `hospital/main`. Chaque
+lancement manuel rejoue les tests sur le même commit ; aucun ancien résultat de
+CI n'est réutilisé.
 
 Les trois contrôles hospitaliers sont dans `scripts/`. La préparation des outils
 est regroupée dans `setup-build/action.yml` et exécutée une seule fois par
