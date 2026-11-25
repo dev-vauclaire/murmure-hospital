@@ -1,7 +1,7 @@
 # Installateur NSIS Windows
 
 La branche `refactor/windows-packaging` prépare un setup généré par Tauri, avec
-un hook dédié au prérequis Visual C++ x64. Le packaging MSI/Burn et son workflow
+des hooks pour Visual C++ x64 et la détection de l'installation. Le packaging MSI/Burn et son workflow
 restent disponibles pendant la validation de NSIS.
 
 Le dossier provisoire `packaging/windows-nsis/` regroupe les fichiers de ce jalon.
@@ -22,6 +22,23 @@ Visual C++ est un runtime partagé : sa désinstallation n'est jamais déclench�
 par Murmure. Les options spécifiques de démarrage automatique et la transition
 depuis Burn restent des jalons distincts. Les dossiers des profils restent ceux
 de Tauri 2.11.1 ; `appDirectoriesOverride` est reporté.
+
+## Hooks et détection de l'installation
+
+`hooks.nsh` reste le point d'entrée déclaré dans la configuration Tauri. Il charge :
+
+- `hooks/prerequisites.nsh` : vérification et installation de Visual C++ x64,
+  puis gestion d'un éventuel redémarrage.
+- `hooks/installation-marker.nsh` : écriture et suppression du marqueur
+  `isInstalled` de type `REG_DWORD`, avec la valeur `1` après installation.
+
+Le marqueur utilise `${MANUPRODUCTKEY}`, construit par Tauri à partir de
+`publisher` et `productName`. Avec l'identité actuelle, il se trouve dans la vue
+64 bits de `HKLM\SOFTWARE\ch-vauclaire\Murmure Vauclaire`.
+Le hook de fin d'installation l'écrit avant la gestion du code `3010`.
+Le hook `POSTUNINSTALL` le supprime même lorsque les préférences sont conservées.
+Il signale la présence de l'installation ; la disponibilité de la transcription
+se vérifie séparément avec l'API de santé.
 
 ## Construire
 
@@ -74,7 +91,7 @@ et sa version. Il prépare le redistribuable et un include NSIS dans
 Seul le lancement manuel télécharge ce fichier réel. Les tests du script utilisent
 des données synthétiques, sans réseau et sans installation de runtime.
 
-Le setup embarque directement le redistribuable via `hooks.nsh`. Avant de copier
+Le setup embarque directement le redistribuable via `hooks/prerequisites.nsh`. Avant de copier
 l'application, le hook consulte `Installed` et `Version` dans les vues 32 et
 64 bits de la clé Microsoft des runtimes x64. Il conserve une version suffisante
 ou plus récente. Sinon, il extrait temporairement `VC_redist.x64.exe` et l'exécute
@@ -122,6 +139,19 @@ Un instantané permet de rejouer le test.
    Vérifier le retrait du programme et des raccourcis, et la conservation de
    Visual C++. Ne pas cocher l'option native de suppression des données
    utilisateur si les préférences doivent être conservées.
+
+Contrôler le marqueur après l'installation, puis après la désinstallation :
+
+```powershell
+reg.exe query "HKLM\SOFTWARE\ch-vauclaire\Murmure Vauclaire" /v isInstalled /reg:64
+```
+
+Après installation, le résultat doit afficher `isInstalled REG_DWORD 0x1`.
+Après désinstallation, la valeur doit être introuvable, y compris si les
+préférences sont conservées. Rejouer avec suppression des préférences et après
+réinstallation : le marqueur doit respectivement être absent puis valoir `1`.
+Si l'installation demande un redémarrage, vérifier que le marqueur est déjà
+présent, y compris en mode silencieux/passif retournant `3010`.
 
 Rejouer également l'installation avec un runtime x64 de version égale ou plus
 récente : l'étape Visual C++ doit être ignorée et sa version conservée. Avec une

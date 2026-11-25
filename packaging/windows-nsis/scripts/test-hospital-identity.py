@@ -19,7 +19,7 @@ class HospitalIdentity(unittest.TestCase):
         self.assertEqual(self.config["mainBinaryName"], "murmure-vauclaire")
         self.assertEqual(self.config["identifier"], "lan.ch-vauclaire.murmure")
         self.assertEqual(self.config["app"]["windows"][0]["title"], self.config["productName"])
-        self.assertEqual(self.config["bundle"]["publisher"], "Vauclaire")
+        self.assertEqual(self.config["bundle"]["publisher"], "ch-vauclaire")
         self.assertEqual(self.config["bundle"]["homepage"], "https://github.com/dev-vauclaire/murmure-hospital")
         self.assertIn(f'<title>{self.config["productName"]}</title>', (ROOT / "index.html").read_text(encoding="utf-8"))
 

@@ -85,7 +85,7 @@
                 "installMode": "currentUser"
             }
         },
-        "publisher": "Vauclaire",
+        "publisher": "ch-vauclaire",
         "homepage": "https://github.com/dev-vauclaire/murmure-hospital",
         "shortDescription": "Application de dictée vocale locale adaptée par Vauclaire",
         "longDescription": "Murmure Vauclaire est une adaptation de Murmure réalisée par le service informatique de Vauclaire."
