@@ -150,6 +150,9 @@ signé, `build-info.json` et `SHA256SUMS.txt`. Il est conservé sept jours.
 
 ## Valider sur Windows
 
+La [fiche de validation VM](validation-vm.md) regroupe les scénarios
+d'installation, de démarrage automatique, de partage et de désinstallation.
+
 Utiliser une VM Windows x64 sans ancienne installation de Murmure Vauclaire.
 Un instantané permet de rejouer le test.
 

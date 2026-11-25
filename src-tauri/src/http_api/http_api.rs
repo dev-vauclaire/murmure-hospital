@@ -59,11 +59,11 @@ pub fn spawn_http_api_thread(
 pub fn notify_start_error_dialog(app_handle: &AppHandle, error: &HttpApiStartError) {
     let msg = match error {
         HttpApiStartError::PortInUse(port) => format!(
-            "Failed to start the local API on port {}.\n\nThe port is already used by another application.\n\nChoose another port in Extensions → Local API (between 1024 and 65535).",
+            "Impossible d'activer le partage Murmure : le port {} est déjà utilisé par une autre application.\n\nFermez cette application, puis réessayez depuis « Partage Murmure » dans les paramètres Système.",
             port
         ),
-        HttpApiStartError::Other(message) => {
-            format!("Failed to start the local API: {}", message)
+        HttpApiStartError::Other(_) => {
+            "Impossible d'activer le partage Murmure sur cet ordinateur.\n\nRéessayez depuis « Partage Murmure » dans les paramètres Système.".to_string()
         }
     };
     let app_handle = app_handle.clone();
@@ -71,7 +71,7 @@ pub fn notify_start_error_dialog(app_handle: &AppHandle, error: &HttpApiStartErr
         let _ = app_handle
             .dialog()
             .message(&msg)
-            .title("Local API Error")
+            .title("Partage Murmure")
             .kind(tauri_plugin_dialog::MessageDialogKind::Error)
             .blocking_show();
     });
