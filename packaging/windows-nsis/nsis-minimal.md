@@ -1,8 +1,8 @@
-# Premier jalon NSIS
+# Installateur NSIS Windows
 
-La branche `refactor/windows-packaging` prépare un setup avec les mécanismes
-standards de Tauri, sans template ni hook personnalisé. Le packaging MSI/Burn et
-son workflow restent disponibles jusqu'à validation de ce jalon.
+La branche `refactor/windows-packaging` prépare un setup généré par Tauri, avec
+un hook dédié au prérequis Visual C++ x64. Le packaging MSI/Burn et son workflow
+restent disponibles pendant la validation de NSIS.
 
 Le dossier provisoire `packaging/windows-nsis/` regroupe les fichiers de ce jalon.
 
@@ -13,12 +13,15 @@ Le dossier provisoire `packaging/windows-nsis/` regroupe les fichiers de ce jalo
 - Installation pour tous les utilisateurs (`perMachine`), avec droits
   administrateur, et interface en français.
 - WebView2 embarqué avec `offlineInstaller`, vérifié et installé par Tauri.
+- Visual C++ x64 embarqué, installé seulement si le runtime est absent ou plus
+  ancien que la version fixée dans `prerequisites.json`.
 - Écrans, raccourcis et désinstallation standards du setup NSIS Tauri.
 - Profils séparés dans `%APPDATA%\lan.ch-vauclaire.murmure`.
 
-**Visual C++ x64 doit déjà être installé sur la VM.** Tauri ne gère pas ce
-prérequis nativement. Son intégration, les options spécifiques de démarrage
-automatique et la transition depuis Burn seront examinées après validation.
+Visual C++ est un runtime partagé : sa désinstallation n'est jamais déclenchée
+par Murmure. Les options spécifiques de démarrage automatique et la transition
+depuis Burn restent des jalons distincts. Les dossiers des profils restent ceux
+de Tauri 2.11.1 ; `appDirectoriesOverride` est reporté.
 
 ## Construire
 
@@ -52,10 +55,38 @@ revue du manifeste. Les tests synthétiques de ces scripts sont dans `tests/`.
 
 Après les tests, les étapes de construction, de préparation des métadonnées et
 de publication de l'artefact s'exécutent uniquement lors d'un lancement manuel.
-Une erreur dans les contrôles ou les tests empêche ces étapes. La commande de
-construction produit uniquement NSIS :
+Une erreur dans les contrôles ou les tests empêche ces étapes.
+
+`scripts/prepare-prerequisites.ps1` télécharge la version Microsoft fixée dans
+`prerequisites.json`, puis vérifie son SHA-256, sa signature Authenticode Microsoft
+et sa version. Il prépare le redistribuable et un include NSIS dans
+`src-tauri/target/nsis-prerequisites/`, sans les installer ni les suivre par Git.
+Seul le lancement manuel télécharge ce fichier réel. Les tests du script utilisent
+des données synthétiques, sans réseau et sans installation de runtime.
+
+Le setup embarque directement le redistribuable via `hooks.nsh`. Avant de copier
+l'application, le hook consulte `Installed` et `Version` dans les vues 32 et
+64 bits de la clé Microsoft des runtimes x64. Il conserve une version suffisante
+ou plus récente. Sinon, il extrait temporairement `VC_redist.x64.exe` et l'exécute
+avec `/install /quiet /norestart`. WebView2 reste pris en charge par Tauri, dans
+sa section précédant ce hook.
+
+Le code `0` permet de continuer. Le code `3010` indique un succès nécessitant un
+redémarrage : l'installation termine, avec redémarrage différé par défaut et sans
+lancement de Murmure avant celui-ci. En mode silencieux/passif, le setup renvoie
+`3010`, même si `/R` était demandé. Les autres erreurs arrêtent l'installation de
+l'application. Les détails sont visibles dans la progression de NSIS.
+
+Après construction, le workflow teste les fonctions NSIS avec des valeurs
+synthétiques et extrait seulement le redistribuable du setup pour comparer son
+empreinte au manifeste. `build-info.json` enregistre sa version, son URL et son
+SHA-256.
+
+Pour construire localement sous Windows avec PowerShell 7, préparer le prérequis puis,
+si cette étape réussit, lancer Tauri :
 
 ```powershell
+& ./packaging/windows-nsis/scripts/prepare-prerequisites.ps1
 pnpm.cmd tauri build --target x86_64-pc-windows-msvc --bundles nsis --config packaging/windows-nsis/tauri.nsis.conf.json --ci --no-sign
 ```
 
@@ -64,12 +95,13 @@ signé, `build-info.json` et `SHA256SUMS.txt`. Il est conservé sept jours.
 
 ## Valider sur Windows
 
-Utiliser une VM sans ancienne installation de Murmure Vauclaire, avec Visual C++
-x64 déjà installé. Un instantané permet de rejouer le test.
+Utiliser une VM Windows x64 sans ancienne installation de Murmure Vauclaire.
+Un instantané permet de rejouer le test.
 
 1. Déconnecter Internet et lancer `Murmure-Vauclaire-NSIS-Setup.exe`.
 2. Vérifier l'interface française, l'élévation administrateur et l'installation
-   dans `C:\Program Files\Murmure Vauclaire`.
+   dans `C:\Program Files\Murmure Vauclaire`. Sans Visual C++ x64 préalable, le
+   prérequis doit être installé depuis le setup, sans téléchargement.
 3. Vérifier le lancement, les raccourcis proposés par Tauri, le guide et une
    dictée avec des phrases fictives. Si WebView2 était absent, vérifier qu'il a
    été installé sans Internet.
@@ -78,9 +110,58 @@ x64 déjà installé. Un instantané permet de rejouer le test.
 5. Ouvrir une session avec un second compte Windows : l'application doit être
    accessible et ses préférences indépendantes du premier compte.
 6. Fermer l'application puis la désinstaller depuis les paramètres Windows.
-   Vérifier le retrait du programme et des raccourcis. Ne pas cocher l'option
-   native de suppression des données utilisateur si les préférences doivent
-   être conservées.
+   Vérifier le retrait du programme et des raccourcis, et la conservation de
+   Visual C++. Ne pas cocher l'option native de suppression des données
+   utilisateur si les préférences doivent être conservées.
+
+Rejouer également l'installation avec un runtime x64 de version égale ou plus
+récente : l'étape Visual C++ doit être ignorée et sa version conservée. Avec une
+version plus ancienne, elle doit être mise à jour. Un runtime x86 seul ne suffit
+pas. Ces cas se testent sur des instantanés dédiés, sans supprimer de DLL système.
+Les retours `3010` et d'erreur sont simulés par les tests NSIS en CI ; sur VM,
+vérifier le comportement réel si un redémarrage est demandé.
+
+## Contrôler le runtime et les DLL sur la VM
+
+Dans les paramètres Windows : **Applications → Applications installées**, puis
+chercher **Microsoft Visual C++** et vérifier l'entrée **x64**.
+
+Depuis PowerShell 64 bits, les clés Microsoft se consultent dans les deux vues :
+
+```powershell
+reg.exe query "HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" /reg:64
+reg.exe query "HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" /reg:32
+```
+
+`Installed` doit valoir `0x1`, avec une `Version` suffisante dans au moins une vue.
+L'absence de la clé dans une seule vue n'indique pas une absence du runtime.
+
+Sous Windows x64, `C:\Windows\System32` contient les DLL x64 ; `SysWOW64` contient
+les DLL x86. Utiliser PowerShell 64 bits pour éviter la redirection vers x86 :
+
+```powershell
+[Environment]::Is64BitProcess
+Get-Item "$env:windir\System32\msvcp140.dll",
+         "$env:windir\System32\vcruntime140.dll",
+         "$env:windir\System32\vcruntime140_1.dll" |
+    Select-Object Name, FullName,
+        @{Name='Version'; Expression={$_.VersionInfo.FileVersion}}
+```
+
+La première commande doit afficher `True`. Dans l'Explorateur, **Propriétés →
+Détails** de la DLL montre également sa version. Après ouverture de Murmure et
+une dictée fictive, on peut contrôler les bibliothèques effectivement chargées :
+
+```powershell
+Get-Process -Name 'murmure-vauclaire' -Module |
+    Where-Object {
+        $_.ModuleName -in @('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')
+    } |
+    Select-Object ModuleName, FileName
+```
+
+Si l'accès est refusé, ouvrir PowerShell en administrateur. La présence d'une DLL
+seule ne remplace pas le contrôle de la version du runtime et le test de dictée.
 
 L'exécution du workflow nécessite la publication de la branche sur GitHub ;
 aucun commit, push ou build distant n'est déclenché par cette préparation locale.

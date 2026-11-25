@@ -11,7 +11,8 @@
             "nsis": {
                 "installMode": "perMachine",
                 "languages": ["French"],
-                "displayLanguageSelector": false
+                "displayLanguageSelector": false,
+                "installerHooks": "../packaging/windows-nsis/hooks.nsh"
             }
         }
     }

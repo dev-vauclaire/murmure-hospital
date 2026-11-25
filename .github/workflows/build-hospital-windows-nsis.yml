@@ -57,6 +57,9 @@ jobs:
                       }
                   }
 
+            - name: Test prerequisite preparation without downloads or installation
+              run: '& ./packaging/windows-nsis/tests/test-prerequisites.ps1'
+
             - name: Prepare build prerequisites
               uses: ./packaging/windows-nsis/setup-build
 
@@ -84,6 +87,10 @@ jobs:
                       }
                   }
 
+            - name: Prepare the verified Visual C++ prerequisite
+              if: github.event_name == 'workflow_dispatch'
+              run: '& ./packaging/windows-nsis/scripts/prepare-prerequisites.ps1'
+
             - name: Build the unsigned native NSIS setup
               if: github.event_name == 'workflow_dispatch'
               run: |
@@ -92,6 +99,18 @@ jobs:
                       Remove-Item -LiteralPath $bundleDirectory -Recurse -Force -ErrorAction Stop
                   }
                   pnpm.cmd tauri build --target x86_64-pc-windows-msvc --bundles nsis --config packaging/windows-nsis/tauri.nsis.conf.json --ci --no-sign --verbose
+
+            - name: Test NSIS prerequisite logic without changing the machine
+              if: github.event_name == 'workflow_dispatch'
+              run: |
+                  $compiler = Join-Path $env:LOCALAPPDATA 'tauri/NSIS/makensis.exe'
+                  if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) {
+                      throw 'The NSIS compiler downloaded by Tauri could not be found.'
+                  }
+                  python packaging/windows-nsis/tests/test-vc-hook.py --makensis $compiler --execute
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'NSIS prerequisite tests failed.'
+                  }
 
             - name: Prepare NSIS artifact and provenance
               if: github.event_name == 'workflow_dispatch'
@@ -107,6 +126,8 @@ jobs:
                   $setupHash = (Get-FileHash -LiteralPath $setupPath -Algorithm SHA256).Hash.ToLowerInvariant()
                   $tauri = Get-Content -LiteralPath 'src-tauri/tauri.conf.json' -Raw | ConvertFrom-Json
                   $model = Get-Content -LiteralPath 'packaging/windows-nsis/model-source.json' -Raw | ConvertFrom-Json
+                  $prerequisites = Get-Content -LiteralPath 'src-tauri/target/nsis-prerequisites/prerequisites-info.json' -Raw | ConvertFrom-Json
+                  & ./packaging/windows-nsis/scripts/check-setup-prerequisites.ps1 -SetupPath $setupPath
                   $metadata = [ordered]@{
                       commit = $env:GITHUB_SHA
                       source_ref = $env:GITHUB_REF
@@ -122,7 +143,7 @@ jobs:
                       model_archive_sha256 = (Get-FileHash -LiteralPath (Join-Path $env:RUNNER_TEMP 'murmure-parakeet.zip') -Algorithm SHA256).Hash.ToLowerInvariant()
                       model_expected_sha256 = $model.sha256
                       webview2 = 'offlineInstaller'
-                      vc_redist = 'required; not bundled in the minimal NSIS milestone'
+                      vc_redist = $prerequisites.vc_redist
                       signed = $false
                   }
                   $metadata | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$artifactDirectory/build-info.json" -Encoding utf8
