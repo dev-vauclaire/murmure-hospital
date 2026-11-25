@@ -1,20 +1,16 @@
-name: Windows Vauclaire - NSIS minimal
-run-name: NSIS - ${{ github.event_name }} - ${{ github.ref_name }}
+name: Build Windows Vauclaire - NSIS
+run-name: Build NSIS - ${{ github.ref_name }}
 
 on:
     workflow_dispatch:
-    # Exercise this new workflow before merging it into the default branch.
-    push:
-        branches:
-            - refactor/windows-packaging
-    pull_request:
 
 permissions:
     contents: read
+    actions: read
 
 jobs:
     windows-nsis:
-        name: Check, test and build NSIS
+        name: Build NSIS from a CI-validated commit
         runs-on: windows-2022
         timeout-minutes: 60
         defaults:
@@ -25,46 +21,20 @@ jobs:
             - name: Checkout source
               uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
               with:
+                  ref: ${{ github.sha }}
                   persist-credentials: false
 
-            - name: Check application versions
+            - name: Require successful CI for this exact commit
+              env:
+                  GH_TOKEN: ${{ github.token }}
               run: |
-                  python packaging/windows-nsis/scripts/check-versions.py
+                  python packaging/windows-nsis/scripts/check-ci.py --repository $env:GITHUB_REPOSITORY --sha $env:GITHUB_SHA --workflow ci-hospital-windows.yml --output (Join-Path $env:RUNNER_TEMP 'murmure-ci-validation.json')
                   if ($LASTEXITCODE -ne 0) {
-                      throw 'Application version checks failed.'
+                      throw 'The selected commit has not passed the hospital CI. Wait for its success before building.'
                   }
-
-            - name: Check hospital identity
-              run: |
-                  python packaging/windows-nsis/scripts/test-hospital-identity.py
-                  if ($LASTEXITCODE -ne 0) {
-                      throw 'Hospital identity checks failed.'
-                  }
-
-            - name: Check hospital default files
-              run: |
-                  python packaging/windows-nsis/scripts/check-default-files.py
-                  if ($LASTEXITCODE -ne 0) {
-                      throw 'Hospital default file checks failed.'
-                  }
-
-            - name: Test packaging controls with synthetic data
-              run: |
-                  foreach ($testScript in @('test-checks.py', 'test-model-source.py')) {
-                      python (Join-Path 'packaging/windows-nsis/tests' $testScript)
-                      if ($LASTEXITCODE -ne 0) {
-                          throw "Packaging control tests failed: $testScript"
-                      }
-                  }
-
-            - name: Test prerequisite preparation without downloads or installation
-              run: '& ./packaging/windows-nsis/tests/test-prerequisites.ps1'
 
             - name: Prepare build prerequisites
               uses: ./packaging/windows-nsis/setup-build
-
-            - name: Test hospital rule presentation
-              run: pnpm.cmd test:hospital-rules
 
             - name: Download and verify the pinned speech model
               run: |
@@ -73,26 +43,10 @@ jobs:
                       throw 'Speech model verification failed.'
                   }
 
-            # The resource directory must exist before compiling Rust tests.
-            - name: Build SmartMic resources
-              run: pnpm.cmd build:smartmic
-
-            - name: Test hospital defaults, SpeechMike and local API
-              working-directory: src-tauri
-              run: |
-                  foreach ($testFilter in @('settings::', 'dictionary::store::', 'formatting_rules::store::', 'utils::defaults::', 'speechmike::', 'shortcuts::', 'cli::cli::tests::speechmike_diagnostic', 'http_api::', 'audio::types::')) {
-                      cargo test --locked --lib $testFilter
-                      if ($LASTEXITCODE -ne 0) {
-                          throw "Hospital tests failed: $testFilter"
-                      }
-                  }
-
             - name: Prepare the verified Visual C++ prerequisite
-              if: github.event_name == 'workflow_dispatch'
               run: '& ./packaging/windows-nsis/scripts/prepare-prerequisites.ps1'
 
             - name: Build the unsigned native NSIS setup
-              if: github.event_name == 'workflow_dispatch'
               run: |
                   $bundleDirectory = 'src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis'
                   if (Test-Path -LiteralPath $bundleDirectory) {
@@ -100,20 +54,7 @@ jobs:
                   }
                   pnpm.cmd tauri build --target x86_64-pc-windows-msvc --bundles nsis --config packaging/windows-nsis/tauri.nsis.conf.json --ci --no-sign --verbose
 
-            - name: Test NSIS prerequisite logic without changing the machine
-              if: github.event_name == 'workflow_dispatch'
-              run: |
-                  $compiler = Join-Path $env:LOCALAPPDATA 'tauri/NSIS/makensis.exe'
-                  if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) {
-                      throw 'The NSIS compiler downloaded by Tauri could not be found.'
-                  }
-                  python packaging/windows-nsis/tests/test-vc-hook.py --makensis $compiler --execute
-                  if ($LASTEXITCODE -ne 0) {
-                      throw 'NSIS prerequisite tests failed.'
-                  }
-
             - name: Prepare NSIS artifact and provenance
-              if: github.event_name == 'workflow_dispatch'
               run: |
                   $installers = @(Get-ChildItem -LiteralPath 'src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis' -Filter '*-setup.exe' -File)
                   if ($installers.Count -ne 1) {
@@ -127,10 +68,12 @@ jobs:
                   $tauri = Get-Content -LiteralPath 'src-tauri/tauri.conf.json' -Raw | ConvertFrom-Json
                   $model = Get-Content -LiteralPath 'packaging/windows-nsis/model-source.json' -Raw | ConvertFrom-Json
                   $prerequisites = Get-Content -LiteralPath 'src-tauri/target/nsis-prerequisites/prerequisites-info.json' -Raw | ConvertFrom-Json
+                  $ci = Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'murmure-ci-validation.json') -Raw | ConvertFrom-Json
                   & ./packaging/windows-nsis/scripts/check-setup-prerequisites.ps1 -SetupPath $setupPath
                   $metadata = [ordered]@{
                       commit = $env:GITHUB_SHA
                       source_ref = $env:GITHUB_REF
+                      ci = $ci
                       version = $tauri.version
                       product_name = $tauri.productName
                       identifier = $tauri.identifier
@@ -150,7 +93,6 @@ jobs:
                   "$setupHash  $($metadata.installer)" | Set-Content -LiteralPath "$artifactDirectory/SHA256SUMS.txt" -Encoding ascii
 
             - name: Upload NSIS test package
-              if: github.event_name == 'workflow_dispatch'
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
               with:
                   name: murmure-vauclaire-windows-x64-nsis-${{ github.sha }}

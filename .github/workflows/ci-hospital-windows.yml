@@ -1,0 +1,105 @@
+name: CI Windows Vauclaire
+run-name: CI Windows - ${{ github.ref_name }}
+
+on:
+    push:
+        branches:
+            - hospital/main
+            # Temporary coverage until the NSIS refactoring is validated.
+            - refactor/windows-packaging
+
+permissions:
+    contents: read
+
+jobs:
+    windows-tests:
+        name: Hospital checks and Windows tests
+        runs-on: windows-2022
+        timeout-minutes: 60
+        defaults:
+            run:
+                shell: pwsh
+
+        steps:
+            - name: Checkout tested commit
+              uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+              with:
+                  ref: ${{ github.sha }}
+                  persist-credentials: false
+
+            - name: Check application versions
+              run: |
+                  python packaging/windows-nsis/scripts/check-versions.py
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'Application version checks failed.'
+                  }
+
+            - name: Check hospital identity
+              run: |
+                  python packaging/windows-nsis/scripts/test-hospital-identity.py
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'Hospital identity checks failed.'
+                  }
+
+            - name: Check hospital default files
+              run: |
+                  python packaging/windows-nsis/scripts/check-default-files.py
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'Hospital default file checks failed.'
+                  }
+
+            - name: Test packaging controls with synthetic data
+              run: |
+                  foreach ($testScript in @('test-checks.py', 'test-model-source.py', 'test-ci-check.py')) {
+                      python (Join-Path 'packaging/windows-nsis/tests' $testScript)
+                      if ($LASTEXITCODE -ne 0) {
+                          throw "Packaging control tests failed: $testScript"
+                      }
+                  }
+
+            - name: Test prerequisite preparation without downloads or installation
+              run: '& ./packaging/windows-nsis/tests/test-prerequisites.ps1'
+
+            - name: Test NSIS source verification without downloads
+              run: '& ./packaging/windows-nsis/tests/test-nsis-source.ps1'
+
+            - name: Prepare build prerequisites
+              uses: ./packaging/windows-nsis/setup-build
+
+            - name: Test hospital rule presentation
+              run: pnpm.cmd test:hospital-rules
+
+            - name: Download and verify the pinned speech model
+              run: |
+                  python packaging/windows-nsis/scripts/prepare-model.py --archive (Join-Path $env:RUNNER_TEMP 'murmure-parakeet.zip')
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'Speech model verification failed.'
+                  }
+
+            # The resource directory must exist before compiling Rust tests.
+            - name: Build SmartMic resources
+              run: pnpm.cmd build:smartmic
+
+            - name: Test hospital defaults, SpeechMike and local API
+              working-directory: src-tauri
+              run: |
+                  foreach ($testFilter in @('settings::', 'dictionary::store::', 'formatting_rules::store::', 'utils::defaults::', 'speechmike::', 'shortcuts::', 'cli::cli::tests::speechmike_diagnostic', 'http_api::', 'audio::types::')) {
+                      cargo test --locked --lib $testFilter
+                      if ($LASTEXITCODE -ne 0) {
+                          throw "Hospital tests failed: $testFilter"
+                      }
+                  }
+
+            - name: Prepare the pinned NSIS compiler
+              run: '& ./packaging/windows-nsis/scripts/prepare-nsis.ps1'
+
+            - name: Test NSIS prerequisite logic without changing the machine
+              run: |
+                  $compiler = Join-Path $env:LOCALAPPDATA 'tauri/NSIS/makensis.exe'
+                  if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) {
+                      throw 'The prepared NSIS compiler could not be found.'
+                  }
+                  python packaging/windows-nsis/tests/test-vc-hook.py --makensis $compiler --execute
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'NSIS prerequisite tests failed.'
+                  }

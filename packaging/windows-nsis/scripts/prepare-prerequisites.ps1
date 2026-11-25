@@ -124,6 +124,9 @@ function Initialize-VcPrerequisite {
         Get-VerifiedVcDownload -Dependency $dependency -Destination $vcRedistPath
         Assert-MicrosoftVcPayload -Path $vcRedistPath -Dependency $dependency
         Write-VcPrerequisiteFiles -OutputDirectory $outputDirectory -VcRedistPath $vcRedistPath -Dependency $dependency
+        if (-not (Test-Path -LiteralPath (Join-Path $outputDirectory 'vc-redist.nsh') -PathType Leaf)) {
+            throw 'The generated NSIS prerequisite include is missing.'
+        }
     } catch {
         foreach ($generated in @('vc-redist.nsh', 'prerequisites-info.json', 'VC_redist.x64.exe')) {
             Remove-Item -LiteralPath (Join-Path $outputDirectory $generated) -Force -ErrorAction SilentlyContinue

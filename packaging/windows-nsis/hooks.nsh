@@ -6,7 +6,7 @@
 
 ; Capture this directory while the hook is included, before Tauri expands macros.
 !define HOSPITAL_VC_HOOK_DIRECTORY "${__FILEDIR__}"
-!include "${HOSPITAL_VC_HOOK_DIRECTORY}/../../src-tauri/target/nsis-prerequisites/vc-redist.nsh"
+!include "${HOSPITAL_VC_HOOK_DIRECTORY}\..\..\src-tauri\target\nsis-prerequisites\vc-redist.nsh"
 !define /ifndef MUI_FINISHPAGE_REBOOTLATER_DEFAULT
 !define HOSPITAL_VC_REGISTRY_KEY "SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
 

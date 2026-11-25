@@ -25,27 +25,36 @@ de Tauri 2.11.1 ; `appDirectoriesOverride` est reporté.
 
 ## Construire
 
-Le workflow `Windows Vauclaire - NSIS minimal` est défini dans
-`.github/workflows/build-hospital-windows-nsis.yml` et possède un seul job
-`windows-nsis`. Ses étapes partagent la même machine Windows :
+Deux workflows hospitaliers séparent les tests de la construction :
 
-| Déclenchement                         | Contrôles et tests | Construction et publication du setup  |
-| ------------------------------------- | ------------------ | ------------------------------------- |
-| Push sur `refactor/windows-packaging` | Exécutés           | Ignorées                              |
-| Pull request                          | Exécutés           | Ignorées                              |
-| Lancement manuel                      | Exécutés           | Après réussite des contrôles et tests |
+| Fichier                                             | Déclenchement                                                           | Rôle                                 |
+| --------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------ |
+| `.github/workflows/ci-hospital-windows.yml`         | Push sur `hospital/main` et temporairement `refactor/windows-packaging` | Contrôles et tests Windows           |
+| `.github/workflows/build-hospital-windows-nsis.yml` | Manuel uniquement                                                       | Construction et publication du setup |
 
-Après publication, le workflow peut être lancé manuellement dans GitHub Actions
-en sélectionnant la branche `refactor/windows-packaging`. Le premier lancement
-sur cette branche a été vérifié sans fusion dans `hospital/main`. Chaque
-lancement manuel rejoue les tests sur le même commit ; aucun ancien résultat de
-CI n'est réutilisé.
+La CI (`CI Windows Vauclaire`) vérifie les versions, l'identité et les fichiers
+de référence, puis lance les tests Python, PowerShell, frontend, Rust et NSIS.
+Elle prépare son propre compilateur NSIS via `scripts/prepare-nsis.ps1`, à partir
+de la version officielle fixée dans `nsis-source.json`, sans construire un setup
+Murmure ni télécharger le véritable redistribuable Visual C++.
+
+Pour créer le setup, attendre que cette CI soit verte pour le commit choisi,
+puis lancer `Build Windows Vauclaire - NSIS` sur la même branche. Le script
+`scripts/check-ci.py` consulte l'API GitHub Actions en lecture seule et vérifie le
+SHA exact du commit extrait. Si la CI est absente, en cours ou échouée, le build
+s'arrête avant l'installation des outils. Aucun test n'est relancé et aucune CI
+n'est déclenchée automatiquement par le build. Le résultat CI accepté est
+enregistré dans `build-info.json`.
+
+Après validation et fusion, retirer `refactor/windows-packaging` du filtre de la
+CI pour ne conserver que `hospital/main`. La CI amont sur pull request et le
+packaging MSI/Burn restent disponibles pendant cette transition.
 
 Les trois contrôles hospitaliers sont dans `scripts/`. La préparation des outils
-est regroupée dans `setup-build/action.yml` et exécutée une seule fois par
-lancement. Le modèle est également téléchargé et vérifié une seule fois, puis
-réutilisé par les tests et, lors d'un lancement manuel, par la construction.
-Les tests applicatifs restent dans les dossiers `tests/` et `src-tauri/` du dépôt.
+est regroupée dans `setup-build/action.yml`, utilisée une fois dans chacune des
+deux exécutions indépendantes. Chaque machine prépare son modèle ; les caches
+Rust accélèrent les compilations. Les tests applicatifs restent dans les dossiers
+`tests/` et `src-tauri/` du dépôt.
 
 La source du modèle est fixée dans `model-source.json` : version, URL et SHA-256
 publié dans la [release officielle 1.3.0](https://github.com/Kieirra/murmure-model/releases/tag/1.3.0).
@@ -53,9 +62,10 @@ publié dans la [release officielle 1.3.0](https://github.com/Kieirra/murmure-mo
 différente interrompt le job. Toute nouvelle version du modèle nécessite la
 revue du manifeste. Les tests synthétiques de ces scripts sont dans `tests/`.
 
-Après les tests, les étapes de construction, de préparation des métadonnées et
-de publication de l'artefact s'exécutent uniquement lors d'un lancement manuel.
-Une erreur dans les contrôles ou les tests empêche ces étapes.
+Le build manuel conserve les contrôles des fichiers réellement téléchargés et
+du paquet produit : empreinte du modèle, signature et version de Visual C++, puis
+présence et empreinte du prérequis embarqué. Ce sont les vérifications du livrable
+de cette exécution, indépendantes des tests applicatifs déjà réussis en CI.
 
 `scripts/prepare-prerequisites.ps1` télécharge la version Microsoft fixée dans
 `prerequisites.json`, puis vérifie son SHA-256, sa signature Authenticode Microsoft
@@ -77,10 +87,9 @@ lancement de Murmure avant celui-ci. En mode silencieux/passif, le setup renvoie
 `3010`, même si `/R` était demandé. Les autres erreurs arrêtent l'installation de
 l'application. Les détails sont visibles dans la progression de NSIS.
 
-Après construction, le workflow teste les fonctions NSIS avec des valeurs
-synthétiques et extrait seulement le redistribuable du setup pour comparer son
-empreinte au manifeste. `build-info.json` enregistre sa version, son URL et son
-SHA-256.
+La CI teste les fonctions NSIS avec des valeurs synthétiques. Après construction,
+le build extrait seulement le redistribuable du setup pour comparer son empreinte
+au manifeste. `build-info.json` enregistre sa version, son URL et son SHA-256.
 
 Pour construire localement sous Windows avec PowerShell 7, préparer le prérequis puis,
 si cette étape réussit, lancer Tauri :
