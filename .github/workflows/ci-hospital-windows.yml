@@ -5,8 +5,6 @@ on:
     push:
         branches:
             - hospital/main
-            # Temporary coverage until the NSIS refactoring is validated.
-            - refactor/windows-packaging
 
 permissions:
     contents: read

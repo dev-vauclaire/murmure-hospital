@@ -1,10 +1,10 @@
 # Installateur NSIS Windows
 
-La branche `refactor/windows-packaging` prépare un setup généré par Tauri, avec
-des hooks pour Visual C++ x64 et la détection de l'installation. Le packaging MSI/Burn et son workflow
-restent disponibles pendant la validation de NSIS.
+Le packaging hospitalier Windows utilise un setup NSIS généré par Tauri, avec
+des hooks pour Visual C++ x64, la détection de l'installation et le démarrage
+automatique. L'ancienne chaîne hospitalière MSI/Burn a été retirée.
 
-Le dossier provisoire `packaging/windows-nsis/` regroupe les fichiers de ce jalon.
+Le dossier `packaging/windows-nsis/` regroupe les fichiers du packaging Windows.
 
 ## Contenu
 
@@ -21,8 +21,8 @@ Le dossier provisoire `packaging/windows-nsis/` regroupe les fichiers de ce jalo
   désactivable individuellement dans Murmure, sans droits administrateur.
 
 Visual C++ est un runtime partagé : sa désinstallation n'est jamais déclenchée
-par Murmure. La transition depuis Burn reste un jalon distinct. Les dossiers des profils restent ceux
-de Tauri 2.11.1 ; `appDirectoriesOverride` est reporté.
+par Murmure. Les dossiers des profils restent ceux de Tauri 2.11.1 ;
+`appDirectoriesOverride` est reporté.
 
 ## Hooks et détection de l'installation
 
@@ -75,7 +75,7 @@ Deux workflows hospitaliers séparent les tests de la construction :
 
 | Fichier                                             | Déclenchement                                                           | Rôle                                 |
 | --------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------ |
-| `.github/workflows/ci-hospital-windows.yml`         | Push sur `hospital/main` et temporairement `refactor/windows-packaging` | Contrôles et tests Windows           |
+| `.github/workflows/ci-hospital-windows.yml`         | Push sur `hospital/main` | Contrôles et tests Windows           |
 | `.github/workflows/build-hospital-windows-nsis.yml` | Manuel uniquement                                                       | Construction et publication du setup |
 
 La CI (`CI Windows Vauclaire`) vérifie les versions, l'identité et les fichiers
@@ -92,9 +92,10 @@ s'arrête avant l'installation des outils. Aucun test n'est relancé et aucune C
 n'est déclenchée automatiquement par le build. Le résultat CI accepté est
 enregistré dans `build-info.json`.
 
-Après validation et fusion, retirer `refactor/windows-packaging` du filtre de la
-CI pour ne conserver que `hospital/main`. La CI amont sur pull request et le
-packaging MSI/Burn restent disponibles pendant cette transition.
+La CI hospitalière s'exécute uniquement sur `hospital/main`. Après intégration
+d'une branche, attendre la validation du commit intégré avant de lancer le
+build. Les workflows officiels de CI et de release restent conservés ; ils sont
+distincts du packaging hospitalier NSIS.
 
 Les trois contrôles hospitaliers sont dans `scripts/`. La préparation des outils
 est regroupée dans `setup-build/action.yml`, utilisée une fois dans chacune des
@@ -149,9 +150,6 @@ L'artefact `murmure-vauclaire-windows-x64-nsis-<commit>` contient le setup non
 signé, `build-info.json` et `SHA256SUMS.txt`. Il est conservé sept jours.
 
 ## Valider sur Windows
-
-La [fiche de validation VM](validation-vm.md) regroupe les scénarios
-d'installation, de démarrage automatique, de partage et de désinstallation.
 
 Utiliser une VM Windows x64 sans ancienne installation de Murmure Vauclaire.
 Un instantané permet de rejouer le test.

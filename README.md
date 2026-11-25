@@ -20,7 +20,7 @@ La branche `main` conserve la référence officielle ; `hospital/main` regroupe 
 - **Liens et mises à jour** : retrait des accès « Signaler un bug », « Notes de version » et « Vérifier les mises à jour » dans la sidebar. Le lien « Soutenir Murmure » est conservé et le composant de vérification des mises à jour n'est plus monté.
 - **Configuration initiale commune** : paramètres, dictionnaire et commandes vocales embarqués lors du build, puis utilisés pour initialiser les fichiers utilisateur absents.
 - **Confidentialité** : historique persistant, conservation des enregistrements audio, logs, API locale et Smart Speech Mic désactivés par défaut.
-- **Build Windows manuel sur GitHub Actions**, avec choix d'un installateur EXE ou MSI et tests ciblés sur la configuration.
+- **Build Windows NSIS manuel sur GitHub Actions**, après validation de la CI du commit sur `hospital/main`.
 - **Boutons SpeechMike SMP3700 sous Windows** : détection automatique, REC pour la dictée, F1 pour annuler et F2 pour réinsérer la dernière transcription. Un diagnostic séparé reste disponible en ligne de commande.
 
 Les restrictions de ce premier jalon portent sur l'interface : les fonctionnalités masquées et le plugin natif de mise à jour restent présents dans le backend. Il ne s'agit pas encore d'une politique de verrouillage administrée.
@@ -149,32 +149,27 @@ L'installation prépare aussi les ressources SmartMic attendues par le projet d'
 
 Sous Ubuntu, si une erreur `GLIBC_PRIVATE` mentionne une bibliothèque provenant de `/snap/`, relancer depuis un terminal système extérieur à une application installée via Snap.
 
-## Logique de build sur GitHub Actions
+## Construire l’installateur Windows
 
-Le workflow [`Build Windows hospitalier`](.github/workflows/build-hospital-windows.yml) compile l'application sur un runner Windows, même lorsque le développement se fait sous Linux. Il se déclenche manuellement.
+1. Pousser sur GitHub les changements et fichiers de configuration à embarquer.
+2. Attendre que **CI Windows Vauclaire** soit verte pour le commit exact à construire. Le build vérifie cette validation sans relancer les tests.
+3. Lancer manuellement [Build Windows Vauclaire - NSIS](https://github.com/dev-vauclaire/murmure-hospital/actions/workflows/build-hospital-windows-nsis.yml) sur cette même branche.
+4. Après réussite, télécharger et extraire l’artefact `murmure-vauclaire-windows-x64-nsis-<commit>`, disponible **7 jours**.
+5. Tester `Murmure-Vauclaire-NSIS-Setup.exe` sur une VM Windows avant diffusion.
 
-### Lancer un build
+La CI hospitalière s'exécute sur `hospital/main`. Après intégration des changements et réussite de cette CI, lancer le build depuis GitHub CLI :
 
-1. Préparer les trois fichiers JSON de référence, puis faire commiter et pousser les modifications sur la branche à construire. Le workflow utilise les fichiers présents sur GitHub, pas ceux restés uniquement en local.
-2. Ouvrir [Actions → Build Windows hospitalier](https://github.com/dev-vauclaire/murmure-hospital/actions/workflows/build-hospital-windows.yml).
-3. Cliquer sur **Run workflow**, sélectionner **`hospital/main`** et choisir `installer_format` :
-    - **`exe`** : installateur NSIS pour le compte utilisateur courant, choix par défaut.
-    - **`msi`** : installateur pour la machine.
-4. Lancer le workflow, attendre sa réussite, puis télécharger l'artefact dans la page de l'exécution.
+```sh
+gh workflow run build-hospital-windows-nsis.yml \
+  --repo dev-vauclaire/murmure-hospital \
+  --ref hospital/main
+```
 
-### Ce que fait le workflow
+Le workflow produit un **setup unique pour Windows x64 et tous les utilisateurs du poste**. Il embarque l’application, le modèle, **Visual C++ x64 et WebView2**, installés si nécessaire sans téléchargement sur le poste. L’installation nécessite des droits administrateur ; les préférences restent propres à chaque utilisateur.
 
-Il vérifie les trois JSON de référence suivis dans Git, prépare les outils et dépendances, télécharge le modèle Parakeet, construit les ressources SmartMic et exécute les tests Rust ciblés des paramètres, du dictionnaire, du formatage, de l'initialisation et du protocole SpeechMike. Les tests du protocole utilisent uniquement des messages synthétiques et ne nécessitent pas de micro connecté.
+L’installateur est non signé. Le workflow ne crée pas de Release et ne déploie rien sur les postes.
 
-Tauri compile ensuite le frontend et le backend pour **Windows x64**, embarque le modèle et les fichiers de référence, puis génère l'installateur choisi.
-
-L'artefact `murmure-hospital-windows-x64-<format>-<commit>` est conservé **7 jours** et contient :
-
-- L'installateur EXE ou MSI **non signé**. L'EXE est un installateur, pas une application portable.
-- `SHA256SUMS.txt`, pour contrôler l'intégrité du fichier.
-- `build-info.json`, avec le commit, la version et les informations de construction.
-
-Ce workflow ne crée pas de Release et ne déploie rien sur les postes. Les essais fonctionnels restent à effectuer sur Windows, notamment le chargement des valeurs initiales sur un profil neuf et la conservation des préférences sur un profil existant.
+Voir le [fonctionnement du pipeline Windows](packaging/windows-nsis/nsis-minimal.md).
 
 ## Contributions, licences et attributions
 
