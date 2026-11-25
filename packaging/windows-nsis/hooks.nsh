@@ -5,6 +5,7 @@
 !define HOSPITAL_NSIS_HOOK_DIRECTORY "${__FILEDIR__}"
 !include "${HOSPITAL_NSIS_HOOK_DIRECTORY}\hooks\prerequisites.nsh"
 !include "${HOSPITAL_NSIS_HOOK_DIRECTORY}\hooks\installation-marker.nsh"
+!include "${HOSPITAL_NSIS_HOOK_DIRECTORY}\hooks\startup.nsh"
 
 !macro NSIS_HOOK_PREINSTALL
     !insertmacro HospitalVcPreInstall
@@ -12,11 +13,13 @@
 
 !macro NSIS_HOOK_POSTINSTALL
     ; The prerequisite completion hook may quit with 3010 in silent/passive mode.
+    !insertmacro HospitalRegisterStartup
     !insertmacro HospitalWriteInstallationMarker
     !insertmacro HospitalVcPostInstall
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL
+    !insertmacro HospitalRemoveStartup
     !insertmacro HospitalRemoveInstallationMarker
 !macroend
 

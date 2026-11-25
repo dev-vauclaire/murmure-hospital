@@ -21,6 +21,7 @@
     "auto_insert": true,
     "persist_history": false,
     "language": "fr",
+    "start_on_login": true,
     "sound_enabled": true,
     "sound_volume": 50,
     "lower_output_while_recording": false,

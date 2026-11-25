@@ -211,6 +211,7 @@ mod tests {
             "f9"
         );
 
+        assert!(settings.start_on_login);
         assert!(
             settings.mic_id.is_none() && settings.mic_label.is_none(),
             "Hospital reference settings must not select a microphone"
@@ -268,6 +269,22 @@ mod tests {
 
         assert!(!resolved.get());
         assert_eq!(settings.sound_volume, 23);
+        assert_eq!(
+            fs::read_to_string(directory.settings_path()).unwrap(),
+            content
+        );
+    }
+
+    #[test]
+    fn an_existing_user_can_keep_automatic_start_disabled() {
+        let directory = TestDirectory::new();
+        let content = r#"{"start_on_login":false}"#;
+        fs::write(directory.settings_path(), content).unwrap();
+        let bundled_path = directory.bundled_settings(r#"{"start_on_login":true}"#);
+
+        let settings = load_settings_from_path(&directory.settings_path(), || Some(bundled_path));
+
+        assert!(!settings.start_on_login);
         assert_eq!(
             fs::read_to_string(directory.settings_path()).unwrap(),
             content

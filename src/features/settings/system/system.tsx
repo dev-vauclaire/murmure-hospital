@@ -6,6 +6,7 @@ import { SoundSettings } from './sound-settings/sound-settings';
 import { MicSettings } from './mic-settings/mic-settings';
 import { RecordModeSettings } from './record-mode-settings/record-mode-settings';
 import { MicrophoneControls } from './microphone-controls/microphone-controls';
+import { StartupSettings } from './startup-settings/startup-settings';
 import { useTranslation } from '@/i18n';
 import { Mic, Settings } from 'lucide-react';
 
@@ -28,6 +29,7 @@ export const System = () => {
                             <MicrophoneControls />
                         </SettingsUI.Section>
                         <SettingsUI.Section title={t('General')} icon={Settings}>
+                            <StartupSettings />
                             <SoundSettings />
                             <SettingsUI.Separator />
                             <PasteMethodSettings />

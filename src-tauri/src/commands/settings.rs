@@ -9,6 +9,26 @@ pub fn get_all_settings(app: AppHandle) -> Result<AppSettings, String> {
 }
 
 #[command]
+pub fn get_start_on_login(app: AppHandle) -> Result<Option<bool>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        Ok(Some(crate::settings::load_settings(&app).start_on_login))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        Ok(None)
+    }
+}
+
+#[command]
+pub fn set_start_on_login(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut s = crate::settings::load_settings(&app);
+    s.start_on_login = enabled;
+    crate::settings::save_settings(&app, &s)
+}
+
+#[command]
 pub fn get_current_language(app: AppHandle) -> Result<String, String> {
     let s = crate::settings::load_settings(&app);
     Ok(s.language)

@@ -34,7 +34,8 @@ class VcHook(unittest.TestCase):
             raise unittest.SkipTest("makensis is not available; specify its path with --makensis.")
 
     def compile_harness(self, body, *, views=None, exit_code=None, launch_error=False,
-                        marker_write_error=False, marker_delete_error=False, expected_exit=0):
+                        marker_write_error=False, marker_delete_error=False,
+                        startup_write_error=False, startup_delete_error=False, expected_exit=0):
         with TemporaryDirectory(prefix="murmure-vc-hook-") as temporary:
             root = Path(temporary)
             hook = root / "packaging/windows-nsis/hooks.nsh"
@@ -78,11 +79,14 @@ class VcHook(unittest.TestCase):
                     + ('        SetErrors' if launch_error else '        ClearErrors'),
                 )
             # Observe the state immediately before the real reboot-related Quit.
-            # This catches an orchestrator that writes the marker too late.
+            # This catches an orchestrator that registers startup or writes the
+            # marker too late.
             completion = '            SetErrorLevel 3010\n            Quit'
             self.assertEqual(source.count(completion), 1)
             source = source.replace(
-                completion, expect("$HospitalMarkerWrites", "1") + completion,
+                completion,
+                expect("$HospitalStartupWrites", "1")
+                + expect("$HospitalMarkerWrites", "1") + completion,
             )
             prerequisite.write_text(source, encoding="utf-8")
 
@@ -114,6 +118,38 @@ class VcHook(unittest.TestCase):
             )
             self.assertNotRegex(source, r'\b(?:WriteReg\w*|DeleteReg\w*|ReadReg\w*)\b')
             marker.write_text(source, encoding="utf-8")
+
+            startup = hook.parent / "hooks/startup.nsh"
+            source = startup.read_text(encoding="utf-8")
+            write_prefix = '    WriteRegStr HKLM "${HOSPITAL_STARTUP_REGISTRY_KEY}" "${BUNDLEID}" '
+            write = (write_prefix
+                     + r'"$\"$INSTDIR\${MAINBINARYNAME}.exe$\" --autostart"')
+            read = '    ReadRegStr $0 HKLM "${HOSPITAL_STARTUP_REGISTRY_KEY}" "${BUNDLEID}"'
+            delete = '        DeleteRegValue HKLM "${HOSPITAL_STARTUP_REGISTRY_KEY}" "${BUNDLEID}"'
+            for command in (write, read, delete):
+                self.assertEqual(source.count(command), 1)
+            source = source.replace(
+                write,
+                '    IntOp $HospitalStartupWrites $HospitalStartupWrites + 1\n'
+                + ('    SetErrors' if startup_write_error else
+                   write.replace(write_prefix, '    StrCpy $HospitalStartupCommand ')
+                   + '\n    ClearErrors'),
+            ).replace(
+                read,
+                '    StrCpy $0 $HospitalStartupCommand\n'
+                '    ${If} $HospitalStartupCommand == ""\n'
+                '        SetErrors\n'
+                '    ${Else}\n'
+                '        ClearErrors\n'
+                '    ${EndIf}',
+            ).replace(
+                delete,
+                '        IntOp $HospitalStartupDeletes $HospitalStartupDeletes + 1\n'
+                + ('        SetErrors' if startup_delete_error else
+                   '        StrCpy $HospitalStartupCommand ""\n        ClearErrors'),
+            )
+            self.assertNotRegex(source, r'\b(?:WriteReg\w*|DeleteReg\w*|ReadReg\w*)\b')
+            startup.write_text(source, encoding="utf-8")
             executable = root / "harness.exe"
             script = root / "harness.nsi"
             script.write_text(
@@ -122,9 +158,12 @@ class VcHook(unittest.TestCase):
                 'RequestExecutionLevel user\nSilentInstall silent\n'
                 'Var PassiveMode\nVar HospitalVcTestCalls\n'
                 'Var HospitalMarkerWrites\nVar HospitalMarkerDeletes\nVar HospitalMarkerIsInstalled\n'
+                'Var HospitalStartupWrites\nVar HospitalStartupDeletes\nVar HospitalStartupCommand\n'
                 f'!include "{literal(str(hook))}"\n'
-                # Match Tauri: the hook is included before this constant exists.
+                # Match Tauri: the hook is included before these constants exist.
                 '!define MANUPRODUCTKEY "Software\\synthetic-publisher\\Synthetic app"\n'
+                '!define BUNDLEID "lan.synthetic.murmure"\n'
+                '!define MAINBINARYNAME "synthetic-murmure"\n'
                 'Section\n'
                 # Compile all real macros, including File, but do not run
                 # them unless the test body below explicitly calls a mock.
@@ -139,6 +178,10 @@ class VcHook(unittest.TestCase):
                 '    StrCpy $HospitalMarkerWrites 0\n'
                 '    StrCpy $HospitalMarkerDeletes 0\n'
                 '    StrCpy $HospitalMarkerIsInstalled ""\n'
+                '    StrCpy $HospitalStartupWrites 0\n'
+                '    StrCpy $HospitalStartupDeletes 0\n'
+                '    StrCpy $HospitalStartupCommand ""\n'
+                '    StrCpy $INSTDIR "$TEMP\\Synthetic app"\n'
                 '    SetRebootFlag false\n'
                 + body + '\nSectionEnd\n'
                 'Function .onInstSuccess\n'
@@ -194,6 +237,7 @@ class VcHook(unittest.TestCase):
                 body = '!insertmacro NSIS_HOOK_PREINSTALL\n'
                 body += expect("$HospitalVcTestCalls", str(calls))
                 body += expect("$HospitalMarkerWrites", "0")
+                body += expect("$HospitalStartupWrites", "0")
                 body += 'IfRebootFlag 0 +3\nSetErrorLevel 43\nQuit\nSetErrorLevel 0\nQuit\n'
                 self.compile_harness(body, views=views, exit_code=0)
 
@@ -255,6 +299,49 @@ class VcHook(unittest.TestCase):
             'StrCpy $HospitalMarkerIsInstalled 1\n'
             '!insertmacro NSIS_HOOK_POSTUNINSTALL\nSetErrorLevel 42\nQuit\n',
             marker_delete_error=True, expected_exit=1603,
+        )
+
+    def test_installation_registers_a_quoted_startup_command_and_reinstallation_updates_it(self):
+        body = '!insertmacro NSIS_HOOK_POSTINSTALL\n'
+        body += expect(
+            "$HospitalStartupCommand",
+            r'$\"$TEMP\Synthetic app\synthetic-murmure.exe$\" --autostart',
+        )
+        body += 'StrCpy $INSTDIR "$TEMP\\Another app location"\n'
+        body += '!insertmacro NSIS_HOOK_POSTINSTALL\n'
+        body += expect(
+            "$HospitalStartupCommand",
+            r'$\"$TEMP\Another app location\synthetic-murmure.exe$\" --autostart',
+        )
+        body += expect("$HospitalStartupWrites", "2")
+        body += expect("$HospitalStartupDeletes", "0")
+        self.compile_harness(body + 'SetErrorLevel 0\nQuit\n')
+
+    def test_uninstallation_removes_startup_in_either_shell_context_and_accepts_absence(self):
+        for context in ("all", "current"):
+            with self.subTest(context=context):
+                body = 'StrCpy $HospitalStartupCommand "synthetic startup command"\n'
+                body += f'SetShellVarContext {context}\nStrCpy $0 "saved"\n'
+                body += '!insertmacro NSIS_HOOK_POSTUNINSTALL\n'
+                body += expect("$HospitalStartupCommand", "")
+                body += expect("$HospitalStartupDeletes", "1")
+                body += expect("$0", "saved")
+                body += '!insertmacro NSIS_HOOK_POSTUNINSTALL\n'
+                body += expect("$HospitalStartupDeletes", "1")
+                body += 'IfErrors 0 +3\nSetErrorLevel 43\nQuit\n'
+                self.compile_harness(body + 'SetErrorLevel 0\nQuit\n')
+
+    def test_startup_write_failure_is_reported_before_reboot_completion(self):
+        self.compile_harness(
+            'SetRebootFlag true\n!insertmacro NSIS_HOOK_POSTINSTALL\nSetErrorLevel 42\nQuit\n',
+            startup_write_error=True, expected_exit=1603,
+        )
+
+    def test_startup_deletion_failure_is_reported(self):
+        self.compile_harness(
+            'StrCpy $HospitalStartupCommand "synthetic startup command"\n'
+            '!insertmacro NSIS_HOOK_POSTUNINSTALL\nSetErrorLevel 42\nQuit\n',
+            startup_delete_error=True, expected_exit=1603,
         )
 
 

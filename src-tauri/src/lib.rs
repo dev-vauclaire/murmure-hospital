@@ -134,7 +134,10 @@ pub fn run() {
                     });
                 }
                 Ok(None) => {
-                    if !args.iter().any(|arg| arg == "--hidden") {
+                    if !args
+                        .iter()
+                        .any(|arg| arg == "--hidden" || arg == "--autostart")
+                    {
                         show_main_window(app);
                     }
                 }
@@ -169,7 +172,21 @@ pub fn run() {
                 }
             }
 
-            // Re-register autostart with --autostart for users who enabled it before this update.
+            // Windows now has one machine-wide NSIS startup entry. Retire an
+            // active legacy HKCU entry instead of launching the same user twice.
+            #[cfg(target_os = "windows")]
+            match app.autolaunch().is_enabled() {
+                Ok(true) => {
+                    if let Err(error) = app.autolaunch().disable() {
+                        warn!("Failed to remove legacy per-user autostart: {error}");
+                    }
+                }
+                Ok(false) => {}
+                Err(error) => warn!("Failed to check legacy per-user autostart: {error}"),
+            }
+
+            // Preserve the native per-user autostart behavior on other systems.
+            #[cfg(not(target_os = "windows"))]
             if let Ok(true) = app.autolaunch().is_enabled() {
                 let _ = app.autolaunch().enable();
             }
@@ -214,14 +231,24 @@ pub fn run() {
                 }
             };
 
+            let mut s = settings::load_settings(app.handle());
+            #[cfg(target_os = "windows")]
+            if settings::should_skip_automatic_start(
+                s.start_on_login,
+                &raw_args,
+                pending_cli_action.is_some(),
+            ) {
+                info!("Automatic startup is disabled for the current user");
+                app.handle().exit(0);
+                return Ok(());
+            }
+
             let model =
                 Arc::new(Model::new(app.handle().clone()).expect("Failed to initialize model"));
             app.manage(model);
             app.manage(AudioState::new());
             app.manage(WakeWordState::new());
             app.manage(crate::overlay::overlay::PendingFlashState::default());
-
-            let mut s = settings::load_settings(app.handle());
 
             #[cfg(target_os = "macos")]
             {
@@ -418,12 +445,10 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();
-                window
-                    .state::<crate::shortcuts::types::ShortcutState>()
-                    .set_suspended(false);
-                window
-                    .state::<crate::shortcuts::types::ShortcutState>()
-                    .set_capturing(false);
+                if let Some(state) = window.try_state::<crate::shortcuts::types::ShortcutState>() {
+                    state.set_suspended(false);
+                    state.set_capturing(false);
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -433,6 +458,8 @@ pub fn run() {
             open_user_guide,
             write_murmure_file,
             get_all_settings,
+            get_start_on_login,
+            set_start_on_login,
             get_speechmike_status,
             get_microphone_controls,
             set_show_in_dock,

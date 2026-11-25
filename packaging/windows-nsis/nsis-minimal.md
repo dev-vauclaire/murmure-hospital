@@ -17,10 +17,11 @@ Le dossier provisoire `packaging/windows-nsis/` regroupe les fichiers de ce jalo
   ancien que la version fixée dans `prerequisites.json`.
 - Écrans, raccourcis et désinstallation standards du setup NSIS Tauri.
 - Profils séparés dans `%APPDATA%\lan.ch-vauclaire.murmure`.
+- Démarrage à l'ouverture de session activé par défaut pour tous les comptes,
+  désactivable individuellement dans Murmure, sans droits administrateur.
 
 Visual C++ est un runtime partagé : sa désinstallation n'est jamais déclenchée
-par Murmure. Les options spécifiques de démarrage automatique et la transition
-depuis Burn restent des jalons distincts. Les dossiers des profils restent ceux
+par Murmure. La transition depuis Burn reste un jalon distinct. Les dossiers des profils restent ceux
 de Tauri 2.11.1 ; `appDirectoriesOverride` est reporté.
 
 ## Hooks et détection de l'installation
@@ -31,6 +32,8 @@ de Tauri 2.11.1 ; `appDirectoriesOverride` est reporté.
   puis gestion d'un éventuel redémarrage.
 - `hooks/installation-marker.nsh` : écriture et suppression du marqueur
   `isInstalled` de type `REG_DWORD`, avec la valeur `1` après installation.
+- `hooks/startup.nsh` : inscription du démarrage commun à toutes les sessions,
+  mise à jour de son chemin à la réinstallation et retrait à la désinstallation.
 
 Le marqueur utilise `${MANUPRODUCTKEY}`, construit par Tauri à partir de
 `publisher` et `productName`. Avec l'identité actuelle, il se trouve dans la vue
@@ -39,6 +42,32 @@ Le hook de fin d'installation l'écrit avant la gestion du code `3010`.
 Le hook `POSTUNINSTALL` le supprime même lorsque les préférences sont conservées.
 Il signale la présence de l'installation ; la disponibilité de la transcription
 se vérifie séparément avec l'API de santé.
+
+## Démarrage automatique et choix personnel
+
+Le setup écrit une valeur `REG_SZ` nommée `lan.ch-vauclaire.murmure` dans
+`HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run`, en vue 64 bits. Elle
+contient le chemin de l'exécutable entre guillemets, suivi de `--autostart`.
+Cette inscription est faite avant la gestion du code `3010` et couvre aussi
+les comptes qui n'ont jamais ouvert Murmure.
+
+Dans **Système → Général**, la case **Lancer Murmure à l'ouverture de ma session**
+agit uniquement sur `start_on_login` dans le `settings.json` du compte courant.
+La valeur par défaut est `true`, y compris pour un profil antérieur ne contenant
+pas encore ce champ. Modifier la case ne modifie pas HKLM et ne demande aucune
+élévation administrateur.
+
+Au lancement `--autostart`, Murmure lit cette préférence avant de charger le
+modèle. Si elle vaut `false`, il quitte immédiatement ; sinon il reste dans la
+barre système, sans afficher sa fenêtre. La vérification lance donc brièvement
+le processus même lorsque le démarrage personnel est désactivé. Le lancement
+manuel, `--hidden` et les commandes CLI explicites restent utilisables.
+
+Le choix prend effet à la prochaine ouverture de session et ne ferme pas une
+instance déjà active. Une réinstallation conserve les préférences existantes.
+La désinstallation retire uniquement notre valeur de la clé `Run` ; les entrées
+des autres applications sont conservées. L'ancien mécanisme Tauri de démarrage
+par utilisateur n'est plus réactivé sous Windows.
 
 ## Construire
 
@@ -152,6 +181,25 @@ préférences sont conservées. Rejouer avec suppression des préférences et ap
 réinstallation : le marqueur doit respectivement être absent puis valoir `1`.
 Si l'installation demande un redémarrage, vérifier que le marqueur est déjà
 présent, y compris en mode silencieux/passif retournant `3010`.
+
+Pour valider le démarrage automatique, utiliser deux comptes successivement
+(sans sessions simultanées) :
+
+1. Après une installation neuve, ouvrir une session : Murmure doit être actif
+   dans la barre système, avec sa fenêtre masquée et sa case de démarrage cochée.
+2. Décocher la case avec le premier compte standard : aucun administrateur ne
+   doit être demandé. Fermer sa session puis la rouvrir : Murmure ne doit plus
+   rester actif. Le raccourci du menu Démarrer doit toujours permettre de l'ouvrir.
+3. Avec le second compte, le démarrage doit rester activé. Recocher dans le premier
+   compte doit réactiver son démarrage à la prochaine ouverture de session.
+4. Réinstaller après avoir décoché la case : le choix personnel doit rester
+   désactivé et l'entrée commune doit pointer vers le dossier d'installation actuel.
+5. Désinstaller puis vérifier que notre valeur `Run` a disparu, même si les
+   préférences sont conservées. Les autres valeurs de `Run` doivent rester intactes.
+
+```powershell
+reg.exe query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v lan.ch-vauclaire.murmure /reg:64
+```
 
 Rejouer également l'installation avec un runtime x64 de version égale ou plus
 récente : l'étape Visual C++ doit être ignorée et sa version conservée. Avec une

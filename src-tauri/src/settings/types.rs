@@ -48,6 +48,7 @@ pub struct AppSettings {
     pub auto_insert: bool,
     pub persist_history: bool, // Persists last 5 transcriptions to disk
     pub language: String,      // UI language code (e.g., "en", "fr")
+    pub start_on_login: bool,  // Windows: continue an automatic launch for this user
     pub sound_enabled: bool,
     pub sound_volume: u8,
     pub lower_output_while_recording: bool,
@@ -163,6 +164,7 @@ impl Default for AppSettings {
             auto_insert: true,
             persist_history: false,
             language: "default".to_string(),
+            start_on_login: true,
             sound_enabled: true,
             sound_volume: 50,
             lower_output_while_recording: false,
@@ -217,5 +219,26 @@ mod tests {
         let parsed: AppSettings = serde_json::from_str(&json).unwrap();
 
         assert_eq!(parsed.record_shortcut, "");
+    }
+
+    #[test]
+    fn existing_profiles_enable_start_on_login_when_the_field_is_missing() {
+        let settings: AppSettings = serde_json::from_str(r#"{"sound_enabled":false}"#).unwrap();
+
+        assert!(settings.start_on_login);
+        assert!(!settings.sound_enabled);
+    }
+
+    #[test]
+    fn disabled_start_on_login_survives_a_settings_round_trip() {
+        let settings = AppSettings {
+            start_on_login: false,
+            ..AppSettings::default()
+        };
+
+        let json = serde_json::to_string(&settings).unwrap();
+        let parsed: AppSettings = serde_json::from_str(&json).unwrap();
+
+        assert!(!parsed.start_on_login);
     }
 }

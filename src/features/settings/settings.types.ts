@@ -1,4 +1,5 @@
 export interface SystemSettings {
+    start_on_login: boolean;
     record_mode: string;
     overlay_mode: string;
     overlay_position: string;
