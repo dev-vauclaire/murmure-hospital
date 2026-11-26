@@ -1,82 +1,42 @@
 # Murmure Vauclaire
 
-**Sommaire**
+## Modifications par rapport au dépôt d’origine
 
-1. [Présentation](#présentation)
-2. [Adaptations Vauclaire](#adaptations-vauclaire)
-3. [Lancer en développement](#lancer-en-développement)
-4. [Configuration initiale](#configuration-initiale)
-5. [Construire l’installateur Windows](#construire-linstallateur-windows)
-6. [Documentation, contributions et crédits](#documentation-contributions-et-crédits)
-
-## Présentation
-
-Murmure Vauclaire est une adaptation de [Murmure](https://github.com/Kieirra/murmure), initialement basée sur la version officielle **2.0.3**.
-
-La dictée utilise le moteur local **Parakeet** pour répartir les calculs sur les postes utilisateurs, sans API de transcription cloud. Murmure a été retenu pour son dictionnaire personnalisable et ses commandes vocales de mise en forme.
-
-## Adaptations Vauclaire
+Murmure Vauclaire est une adaptation de [Murmure](https://github.com/Kieirra/murmure), initialement basée sur la version officielle **2.0.3**. La reconnaissance vocale reste locale, avec le moteur **Parakeet**.
 
 - Interface simplifiée : accueil, dictionnaire, commandes vocales et réglages essentiels.
 - Identité visuelle associant les logos Murmure et Vauclaire.
 - Paramètres, dictionnaire et commandes vocales préconfigurés.
 - Raccourcis personnalisables et support du **Philips SpeechMike SMP3700 sous Windows**.
-- Identité d’application distincte et retrait du système de mise à jour intégré : les nouvelles versions passent par un installateur validé.
-- API locale activable avec **Partage Murmure**, avec une route de disponibilité `GET /api/health`.
-- Sous Windows, démarrage à l'ouverture de session activé par défaut et personnalisable pour chaque utilisateur.
+- Identité d’application distincte et retrait des mises à jour automatiques vers le projet officiel.
+- API locale activable avec **Partage Murmure** et ajout de la route `GET /api/health`.
+- Sous Windows, démarrage à l’ouverture de session activé par défaut et personnalisable pour chaque utilisateur.
 
 La simplification de l’interface ne constitue pas un verrouillage des fichiers de préférences.
 
-## Lancer en développement
+## Fichiers de configuration
 
-Prérequis : **Git, Node.js 22, pnpm 10.19.0, Rust/Cargo** et les [dépendances système de Tauri 2](https://v2.tauri.app/start/prerequisites/).
+Préparer ces trois fichiers dans **`resources/hospital/` avant le build** :
 
-Cloner le dépôt, puis se placer à sa racine sur la branche à tester. Télécharger le [modèle Parakeet 1.3.0](https://github.com/Kieirra/murmure-model/releases/download/1.3.0/parakeet-tdt-0.6b-v3-int8.zip) et extraire l’archive dans `resources/`, pour obtenir le dossier `resources/parakeet-tdt-0.6b-v3-int8/`.
+| Fichier à embarquer                                                               | Contenu                        | Fichier utilisateur créé |
+| --------------------------------------------------------------------------------- | ------------------------------ | ------------------------ |
+| [default-settings.json](resources/hospital/default-settings.json)                 | Paramètres initiaux            | `settings.json`          |
+| [default-dictionnary.json](resources/hospital/default-dictionnary.json)           | Dictionnaire                   | `dictionary.json`        |
+| [default-formatting-rules.json](resources/hospital/default-formatting-rules.json) | Commandes vocales et formatage | `formatting_rules.json`  |
 
-```sh
-pnpm install --frozen-lockfile
-pnpm tauri dev
-```
+Au lancement, chaque fichier utilisateur absent est initialisé depuis son modèle dans **`%APPDATA%\lan.ch-vauclaire.murmure\`** sous Windows. Les fichiers existants sont conservés, y compris après réinstallation : modifier les modèles ne met donc pas à jour les profils existants.
 
-`pnpm tauri dev` lance l’application complète et son frontend. `pnpm dev` lance uniquement le frontend. `pnpm test` exécute les tests des commandes vocales et de Partage Murmure.
-
-Sous Ubuntu, si une erreur `GLIBC_PRIVATE` mentionne `/snap/`, utiliser un terminal système extérieur à une application Snap.
-
-## Configuration initiale
-
-Ces trois fichiers sont à préparer **avant le build** :
-
-| Fichier                                                                           | Rôle                                      |
-| --------------------------------------------------------------------------------- | ----------------------------------------- |
-| [default-settings.json](resources/hospital/default-settings.json)                 | Paramètres initiaux.                      |
-| [default-dictionnary.json](resources/hospital/default-dictionnary.json)           | Mots et expressions du dictionnaire.      |
-| [default-formatting-rules.json](resources/hospital/default-formatting-rules.json) | Commandes vocales et règles de formatage. |
-
-Au lancement, chaque fichier utilisateur absent est initialisé depuis son modèle. **Les fichiers existants ne sont pas écrasés**, y compris après réinstallation.
-
-Sous Windows, les fichiers actifs se trouvent dans `%APPDATA%\lan.ch-vauclaire.murmure\`. L’API locale est désactivée par défaut et se contrôle dans **Système → Général → Partage Murmure**. Les routes sont décrites dans la [documentation API](docs/features/api.fr.md).
-
-## Construire l’installateur Windows
+## Construire l’installateur Windows 64 bits
 
 1. Intégrer et pousser sur `hospital/main` les changements et fichiers de configuration à embarquer.
-2. Attendre que **CI Windows Vauclaire** soit verte pour le commit exact à construire. Le build vérifie cette validation sans relancer les tests.
-3. Lancer manuellement [Build Windows Vauclaire - NSIS](https://github.com/dev-vauclaire/murmure-hospital/actions/workflows/build-hospital-windows-nsis.yml) sur cette même branche.
-4. Après réussite, télécharger et extraire l’artefact `murmure-vauclaire-windows-x64-nsis-<commit>`, disponible **7 jours**.
+2. Attendre que **CI Windows Vauclaire** soit verte pour ce même commit.
+3. Dans **Actions → [Build Windows Vauclaire - NSIS](https://github.com/dev-vauclaire/murmure-hospital/actions/workflows/build-hospital-windows-nsis.yml) → Run workflow**, sélectionner `hospital/main` puis lancer le build. Il vérifie la réussite de la CI sans relancer les tests.
+4. Après réussite, ouvrir l’exécution et télécharger l’artefact `murmure-vauclaire-windows-x64-nsis-<commit>`, disponible **7 jours**, puis extraire son archive.
 5. Tester `Murmure-Vauclaire-NSIS-Setup.exe` sur une VM Windows avant diffusion.
 
-La CI hospitalière s'exécute sur `hospital/main`. Après intégration des changements et réussite de cette CI, lancer le build depuis GitHub CLI :
+Le résultat est un **installateur NSIS `.exe` pour Windows x64**, qui installe l’application pour tous les utilisateurs du poste avec des droits administrateur. Le modèle, **Visual C++ x64 et WebView2 sont embarqués** ; les prérequis sont installés si nécessaire sans téléchargement sur le poste. Les préférences restent propres à chaque utilisateur. L’installateur est non signé.
 
-```sh
-gh workflow run build-hospital-windows-nsis.yml \
-  --repo dev-vauclaire/murmure-hospital \
-  --ref hospital/main
-```
-
-Le workflow produit un **setup unique pour Windows x64 et tous les utilisateurs du poste**. Il embarque l’application, le modèle, **Visual C++ x64 et WebView2**, installés si nécessaire sans téléchargement sur le poste. L’installation nécessite des droits administrateur ; les préférences restent propres à chaque utilisateur.
-
-L’installateur est non signé. Le workflow ne crée pas de Release et ne déploie rien sur les postes.
-
-## Documentation, contributions et crédits
+## Documentation et crédits
 
 - [Guide utilisateur HTML](resources/hospital/user-guide/index.html), également accessible depuis l’application.
 - [API locale et route health](docs/features/api.fr.md).
